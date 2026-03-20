@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { formatCurrency, formatDate, formatDateShort, today } from '@/lib/utils'
+import { formatCurrency, formatDateWithTime, formatDateShort, today } from '@/lib/utils'
 import { Card, CardContent, CardTitle } from '@/components/ui'
 import Link from 'next/link'
 
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
           Hola, {vendedor.nombre.split(' ')[0]}
         </h1>
         <p className="text-sm capitalize text-gray-500">
-          {formatDate(fechaHoy)}
+          {formatDateWithTime(new Date())}
         </p>
       </div>
 

@@ -11,7 +11,7 @@
 CREATE TABLE vendedores (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nombre text NOT NULL,
-  pin text NOT NULL UNIQUE,
+  pin text NOT NULL,
   rol text NOT NULL CHECK (rol IN ('admin', 'vendedor')),
   activo boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -435,9 +435,9 @@ RETURNS uuid AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- ----- VENDEDORES -----
--- Lectura: todos los autenticados
+-- Lectura: todos (anonimos y autenticados) - necesario para login
 CREATE POLICY "vendedores_select" ON vendedores
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 -- Escritura: solo admin
 CREATE POLICY "vendedores_insert" ON vendedores
@@ -450,8 +450,9 @@ CREATE POLICY "vendedores_delete" ON vendedores
   FOR DELETE TO authenticated USING (get_user_role() = 'admin');
 
 -- ----- PRODUCTOS -----
+-- Lectura: todos (anonimos y autenticados) - necesario para login
 CREATE POLICY "productos_select" ON productos
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "productos_insert" ON productos
   FOR INSERT TO authenticated WITH CHECK (get_user_role() = 'admin');
@@ -463,8 +464,9 @@ CREATE POLICY "productos_delete" ON productos
   FOR DELETE TO authenticated USING (get_user_role() = 'admin');
 
 -- ----- SEMANAS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "semanas_select" ON semanas
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "semanas_insert" ON semanas
   FOR INSERT TO authenticated WITH CHECK (get_user_role() = 'admin');
@@ -476,8 +478,9 @@ CREATE POLICY "semanas_delete" ON semanas
   FOR DELETE TO authenticated USING (get_user_role() = 'admin');
 
 -- ----- JORNADAS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "jornadas_select" ON jornadas
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "jornadas_insert" ON jornadas
   FOR INSERT TO authenticated WITH CHECK (get_user_role() = 'admin');
@@ -489,8 +492,9 @@ CREATE POLICY "jornadas_delete" ON jornadas
   FOR DELETE TO authenticated USING (get_user_role() = 'admin');
 
 -- ----- ASIGNACIONES -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "asignaciones_select" ON asignaciones
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "asignaciones_insert" ON asignaciones
   FOR INSERT TO authenticated
@@ -505,8 +509,9 @@ CREATE POLICY "asignaciones_delete" ON asignaciones
   USING (vendedor_id = get_vendedor_id() OR get_user_role() = 'admin');
 
 -- ----- GASTOS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "gastos_select" ON gastos
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "gastos_insert" ON gastos
   FOR INSERT TO authenticated
@@ -521,8 +526,9 @@ CREATE POLICY "gastos_delete" ON gastos
   USING (vendedor_id = get_vendedor_id() OR get_user_role() = 'admin');
 
 -- ----- TRANSFERENCIAS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "transferencias_select" ON transferencias
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "transferencias_insert" ON transferencias
   FOR INSERT TO authenticated
@@ -537,8 +543,9 @@ CREATE POLICY "transferencias_delete" ON transferencias
   USING (vendedor_id = get_vendedor_id() OR get_user_role() = 'admin');
 
 -- ----- DESCUENTOS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "descuentos_select" ON descuentos
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "descuentos_insert" ON descuentos
   FOR INSERT TO authenticated
@@ -553,8 +560,9 @@ CREATE POLICY "descuentos_delete" ON descuentos
   USING (vendedor_id = get_vendedor_id() OR get_user_role() = 'admin');
 
 -- ----- PAGAS -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "pagas_select" ON pagas
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "pagas_insert" ON pagas
   FOR INSERT TO authenticated WITH CHECK (get_user_role() = 'admin');
@@ -566,8 +574,9 @@ CREATE POLICY "pagas_delete" ON pagas
   FOR DELETE TO authenticated USING (get_user_role() = 'admin');
 
 -- ----- INVERSIONES -----
+-- Lectura: todos (anonimos y autenticados)
 CREATE POLICY "inversiones_select" ON inversiones
-  FOR SELECT TO authenticated USING (true);
+  FOR SELECT TO anon, authenticated USING (true);
 
 CREATE POLICY "inversiones_insert" ON inversiones
   FOR INSERT TO authenticated WITH CHECK (get_user_role() = 'admin');

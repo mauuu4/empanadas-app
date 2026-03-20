@@ -33,6 +33,22 @@ export function formatDate(date: string | Date): string {
 }
 
 /**
+ * Formatear una fecha con hora (espanol + hora)
+ */
+export function formatDateWithTime(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date
+  return d.toLocaleDateString('es-EC', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Guayaquil',
+  })
+}
+
+/**
  * Formatear una fecha corta (dd/mm/yyyy)
  */
 export function formatDateShort(date: string | Date): string {
