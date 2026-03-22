@@ -58,7 +58,7 @@ export default async function DashboardPage() {
       <Card>
         <CardTitle>Jornada de hoy</CardTitle>
         <CardContent className="mt-2">
-          {jornada ? (
+          {jornada && jornada.estado === 'abierta'? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Estado</span>

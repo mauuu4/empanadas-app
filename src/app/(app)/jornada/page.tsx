@@ -72,21 +72,31 @@ export default async function JornadaPage() {
         </p>
       </div>
 
-      {jornada ? (
+      {jornada && jornada.estado === 'cerrada' ? (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="mb-2 text-gray-500">La jornada de hoy esta cerrada.</p>
+            <p className="mb-4 text-sm text-gray-400">
+              {formatDate(jornada.fecha)}
+            </p>
+            {isAdmin ? (
+              <CrearJornadaButton semanaId={semana?.id} />
+            ) : (
+              <p className="text-sm text-gray-500">
+                Espera a que el administrador cree una nueva jornada.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      ) : jornada ? (
         <>
           <Card>
             <CardTitle>Estado de la jornada</CardTitle>
             <CardContent className="mt-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Estado</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    jornada.estado === 'abierta'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {jornada.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
+                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  Abierta
                 </span>
               </div>
             </CardContent>

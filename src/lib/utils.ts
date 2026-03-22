@@ -61,10 +61,11 @@ export function formatDateShort(date: string | Date): string {
 }
 
 /**
- * Obtener la fecha de hoy en formato YYYY-MM-DD
+ * Obtener la fecha de hoy en formato YYYY-MM-DD (zona horaria Ecuador)
  */
 export function today(): string {
-  return new Date().toISOString().split('T')[0]
+  const now = new Date()
+  return now.toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' })
 }
 
 /**

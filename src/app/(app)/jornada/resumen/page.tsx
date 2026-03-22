@@ -76,11 +76,22 @@ export default async function ResumenPage() {
         </div>
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="text-gray-500">
+            <p className="mb-4 text-gray-500">
               Ningun vendedor ha registrado productos todavia.
             </p>
           </CardContent>
         </Card>
+
+        {isAdmin && (
+          <CierreDiaForm
+            jornadaId={jornada.id}
+            efectivoTotal={0}
+            montoAlcancia={jornada.monto_alcancia}
+            pagasExistentes={[]}
+            isAdmin={isAdmin}
+            isCerrada={jornada.estado === 'cerrada'}
+          />
+        )}
       </div>
     )
   }
