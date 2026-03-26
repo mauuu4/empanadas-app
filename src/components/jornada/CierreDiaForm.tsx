@@ -12,11 +12,18 @@ interface PagaItem {
   monto: number
 }
 
+interface Trabajador {
+  id: string
+  nombre: string
+}
+
 interface CierreDiaFormProps {
   jornadaId: string
   efectivoTotal: number
   montoAlcancia: number
+  valorAdicional: number
   pagasExistentes: PagaItem[]
+  trabajadores: Trabajador[]
   isAdmin: boolean
   isCerrada: boolean
 }
@@ -25,7 +32,9 @@ export function CierreDiaForm({
   jornadaId,
   efectivoTotal,
   montoAlcancia: montoAlcanciaInicial,
+  valorAdicional: valorAdicionalInicial,
   pagasExistentes,
+  trabajadores,
   isAdmin,
   isCerrada,
 }: CierreDiaFormProps) {
@@ -36,6 +45,9 @@ export function CierreDiaForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const [valorAdicional, setValorAdicional] = useState(
+    valorAdicionalInicial > 0 ? valorAdicionalInicial.toString() : '',
+  )
   const [alcancia, setAlcancia] = useState(
     montoAlcanciaInicial > 0 ? montoAlcanciaInicial.toString() : '',
   )
@@ -45,16 +57,24 @@ export function CierreDiaForm({
   const [nuevaPersona, setNuevaPersona] = useState('')
   const [nuevaMonto, setNuevaMonto] = useState('')
 
+  const valorAdicionalNum = parseFloat(valorAdicional) || 0
   const alcanciaNum = parseFloat(alcancia) || 0
   const totalPagas = pagas.reduce((sum, p) => sum + p.monto, 0)
-  const saldoDia = efectivoTotal - alcanciaNum - totalPagas
+  const efectivoConAdicional = efectivoTotal + valorAdicionalNum
+  const saldoDia = efectivoConAdicional - alcanciaNum - totalPagas
+
+  // Options for the worker select
+  const opcionesTrabajadores = [
+    ...trabajadores.map((t) => t.nombre),
+    'Señora',
+  ]
 
   function handleAgregarPaga() {
-    if (!nuevaPersona.trim() || !nuevaMonto) return
+    if (!nuevaPersona || !nuevaMonto) return
     const monto = parseFloat(nuevaMonto)
     if (isNaN(monto) || monto <= 0) return
 
-    setPagas((prev) => [...prev, { persona: nuevaPersona.trim(), monto }])
+    setPagas((prev) => [...prev, { persona: nuevaPersona, monto }])
     setNuevaPersona('')
     setNuevaMonto('')
   }
@@ -78,11 +98,12 @@ export function CierreDiaForm({
     setLoading(true)
     setError('')
 
-    // Actualizar alcancia en la jornada
+    // Actualizar alcancia y valor_adicional en la jornada
     const { error: jornadaError } = await supabase
       .from('jornadas')
       .update({
         monto_alcancia: alcanciaNum,
+        valor_adicional: valorAdicionalNum,
         estado: 'cerrada',
       })
       .eq('id', jornadaId)
@@ -118,10 +139,76 @@ export function CierreDiaForm({
     router.refresh()
   }
 
+  async function handleGuardar() {
+    if (!isAdmin || isCerrada) return
+
+    setLoading(true)
+    setError('')
+
+    // Guardar sin cerrar (solo actualizar valores)
+    const { error: jornadaError } = await supabase
+      .from('jornadas')
+      .update({
+        monto_alcancia: alcanciaNum,
+        valor_adicional: valorAdicionalNum,
+      })
+      .eq('id', jornadaId)
+
+    if (jornadaError) {
+      setError(jornadaError.message)
+      setLoading(false)
+      return
+    }
+
+    // Eliminar pagas existentes y re-insertar
+    await supabase.from('pagas').delete().eq('jornada_id', jornadaId)
+
+    if (pagas.length > 0) {
+      const { error: pagasError } = await supabase.from('pagas').insert(
+        pagas.map((p) => ({
+          jornada_id: jornadaId,
+          persona: p.persona,
+          monto: p.monto,
+        })),
+      )
+
+      if (pagasError) {
+        setError(pagasError.message)
+        setLoading(false)
+        return
+      }
+    }
+
+    setLoading(false)
+    toast('Datos guardados')
+    router.refresh()
+  }
+
   if (!isAdmin) return null
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Valor adicional */}
+      <div className="rounded-xl bg-white p-4 shadow-sm">
+        <h3 className="mb-3 font-medium text-gray-900">Valor adicional</h3>
+        <p className="mb-2 text-xs text-gray-500">
+          Suma un monto extra al total de venta (ej: ventas adicionales fuera de
+          bandejas)
+        </p>
+        <Input
+          id="valor-adicional"
+          type="number"
+          min="0"
+          step="0.01"
+          value={valorAdicional}
+          onChange={(e) => setValorAdicional(e.target.value)}
+          placeholder="0.00"
+          inputMode="decimal"
+          label="Monto adicional ($)"
+          disabled={isCerrada}
+        />
+      </div>
+
       {/* Alcancia */}
       <div className="rounded-xl bg-white p-4 shadow-sm">
         <h3 className="mb-3 font-medium text-gray-900">Alcancia</h3>
@@ -174,12 +261,18 @@ export function CierreDiaForm({
 
         {!isCerrada && (
           <div className="flex gap-2">
-            <Input
+            <select
               value={nuevaPersona}
               onChange={(e) => setNuevaPersona(e.target.value)}
-              placeholder="Nombre"
-              className="flex-1"
-            />
+              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            >
+              <option value="">Seleccionar...</option>
+              {opcionesTrabajadores.map((nombre) => (
+                <option key={nombre} value={nombre}>
+                  {nombre}
+                </option>
+              ))}
+            </select>
             <Input
               type="number"
               min="0.01"
@@ -210,6 +303,12 @@ export function CierreDiaForm({
             <span className="text-gray-600">Efectivo total</span>
             <span className="font-medium">{formatCurrency(efectivoTotal)}</span>
           </div>
+          {valorAdicionalNum > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>(+) Valor adicional</span>
+              <span>+{formatCurrency(valorAdicionalNum)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-blue-600">
             <span>(-) Alcancia</span>
             <span>-{formatCurrency(alcanciaNum)}</span>
@@ -232,9 +331,19 @@ export function CierreDiaForm({
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {!isCerrada && (
-        <Button onClick={handleCerrar} loading={loading} size="lg">
-          Cerrar jornada del dia
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={handleGuardar}
+            loading={loading}
+            size="lg"
+            variant="secondary"
+          >
+            Guardar sin cerrar
+          </Button>
+          <Button onClick={handleCerrar} loading={loading} size="lg">
+            Cerrar jornada del dia
+          </Button>
+        </div>
       )}
 
       {isCerrada && (

@@ -2,8 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { today, formatDate } from '@/lib/utils'
 import { Card, CardContent, CardTitle } from '@/components/ui'
-import { CrearJornadaButton } from '@/components/jornada/CrearJornadaButton'
+import { ensureJornadaHoy } from '@/lib/jornada-utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 export default async function JornadaPage() {
   const supabase = await createClient()
@@ -27,21 +29,20 @@ export default async function JornadaPage() {
   const isAdmin = vendedor.rol === 'admin'
   const fechaHoy = today()
 
-  // Buscar jornada del dia
-  const { data: jornada } = await supabase
-    .from('jornadas')
-    .select('*')
-    .eq('fecha', fechaHoy)
-    .single()
+  // Auto-create jornada for admin, otherwise just look it up
+  let jornada = null
 
-  // Buscar semana abierta
-  const { data: semana } = await supabase
-    .from('semanas')
-    .select('*')
-    .eq('estado', 'abierta')
-    .order('fecha_inicio', { ascending: false })
-    .limit(1)
-    .single()
+  if (isAdmin) {
+    const result = await ensureJornadaHoy(supabase)
+    jornada = result.jornada
+  } else {
+    const { data } = await supabase
+      .from('jornadas')
+      .select('*')
+      .eq('fecha', fechaHoy)
+      .single()
+    jornada = data
+  }
 
   // Si hay jornada, buscar asignaciones del vendedor
   let asignaciones: {
@@ -75,17 +76,21 @@ export default async function JornadaPage() {
       {jornada && jornada.estado === 'cerrada' ? (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="mb-2 text-gray-500">La jornada de hoy esta cerrada.</p>
-            <p className="mb-4 text-sm text-gray-400">
-              {formatDate(jornada.fecha)}
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <span className="text-xl">✓</span>
+            </div>
+            <p className="mb-2 font-medium text-green-700">
+              Jornada cerrada
             </p>
-            {isAdmin ? (
-              <CrearJornadaButton semanaId={semana?.id} />
-            ) : (
-              <p className="text-sm text-gray-500">
-                Espera a que el administrador cree una nueva jornada.
-              </p>
-            )}
+            <p className="mb-4 text-sm text-gray-500">
+              La jornada de hoy ya fue cerrada. Mañana se creará una nueva automáticamente.
+            </p>
+            <Link
+              href="/jornada/resumen"
+              className="inline-block rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+            >
+              Ver resumen
+            </Link>
           </CardContent>
         </Card>
       ) : jornada ? (
@@ -178,16 +183,12 @@ export default async function JornadaPage() {
       ) : (
         <Card>
           <CardContent className="py-8 text-center">
-            <p className="mb-4 text-gray-500">
+            <p className="mb-2 text-gray-500">
               No hay jornada creada para hoy.
             </p>
-            {isAdmin ? (
-              <CrearJornadaButton semanaId={semana?.id} />
-            ) : (
-              <p className="text-sm text-gray-500">
-                Espera a que el administrador cree la jornada.
-              </p>
-            )}
+            <p className="text-sm text-gray-400">
+              El administrador debe iniciar sesión para crear la jornada del día automáticamente.
+            </p>
           </CardContent>
         </Card>
       )}

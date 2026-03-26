@@ -4,6 +4,8 @@ import { today } from '@/lib/utils'
 import { CerrarVentaForm } from '@/components/jornada/CerrarVentaForm'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function CerrarPage() {
   const supabase = await createClient()
 

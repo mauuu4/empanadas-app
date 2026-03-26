@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { formatCurrency, formatDateWithTime, formatDateShort, today } from '@/lib/utils'
+import { formatCurrency, formatDateWithTime, formatDateShort } from '@/lib/utils'
 import { Card, CardContent, CardTitle } from '@/components/ui'
+import { ensureJornadaHoy } from '@/lib/jornada-utils'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -24,23 +27,34 @@ export default async function DashboardPage() {
   if (!vendedor) redirect('/login')
 
   const isAdmin = vendedor.rol === 'admin'
-  const fechaHoy = today()
 
-  // Buscar jornada del dia
-  const { data: jornada } = await supabase
-    .from('jornadas')
-    .select('*')
-    .eq('fecha', fechaHoy)
-    .single()
+  // Auto-create jornada if needed (only for admin)
+  let jornada = null
+  let semana = null
 
-  // Buscar semana actual (abierta)
-  const { data: semana } = await supabase
-    .from('semanas')
-    .select('*')
-    .eq('estado', 'abierta')
-    .order('fecha_inicio', { ascending: false })
-    .limit(1)
-    .single()
+  if (isAdmin) {
+    const result = await ensureJornadaHoy(supabase)
+    jornada = result.jornada
+    semana = result.semana
+  } else {
+    // Non-admin: just look for today's jornada
+    const { data } = await supabase
+      .from('jornadas')
+      .select('*')
+      .eq('fecha', new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' }))
+      .single()
+    jornada = data
+
+    // Get semana
+    const { data: semanaData } = await supabase
+      .from('semanas')
+      .select('*')
+      .eq('estado', 'abierta')
+      .order('fecha_inicio', { ascending: false })
+      .limit(1)
+      .single()
+    semana = semanaData
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,18 +72,12 @@ export default async function DashboardPage() {
       <Card>
         <CardTitle>Jornada de hoy</CardTitle>
         <CardContent className="mt-2">
-          {jornada && jornada.estado === 'abierta'? (
+          {jornada && jornada.estado === 'abierta' ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">Estado</span>
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    jornada.estado === 'abierta'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {jornada.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
+                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                  Abierta
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -99,19 +107,32 @@ export default async function DashboardPage() {
                 </Link>
               </div>
             </div>
+          ) : jornada && jornada.estado === 'cerrada' ? (
+            <div className="py-4 text-center">
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <span className="text-xl">✓</span>
+              </div>
+              <p className="text-sm font-medium text-green-700">
+                Jornada cerrada
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                La jornada de hoy ya fue cerrada. Mañana se creará una nueva automáticamente.
+              </p>
+              <Link
+                href="/jornada/resumen"
+                className="mt-3 inline-block rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+              >
+                Ver resumen
+              </Link>
+            </div>
           ) : (
             <div className="py-4 text-center">
               <p className="text-sm text-gray-500">
                 No hay jornada creada para hoy.
               </p>
-              {isAdmin && (
-                <Link
-                  href="/jornada"
-                  className="mt-2 inline-block rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600"
-                >
-                  Crear jornada
-                </Link>
-              )}
+              <p className="mt-1 text-xs text-gray-400">
+                El administrador debe iniciar sesión para crear la jornada del día.
+              </p>
             </div>
           )}
         </CardContent>

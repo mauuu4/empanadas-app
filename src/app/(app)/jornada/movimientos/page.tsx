@@ -4,6 +4,8 @@ import { today } from '@/lib/utils'
 import { MovimientosForm } from '@/components/jornada/MovimientosForm'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function MovimientosPage() {
   const supabase = await createClient()
 

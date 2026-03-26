@@ -5,6 +5,8 @@ import { Card, CardContent, CardTitle } from '@/components/ui'
 import { InversionesForm } from '@/components/semana/InversionesForm'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function InversionesPage() {
   const supabase = await createClient()
 

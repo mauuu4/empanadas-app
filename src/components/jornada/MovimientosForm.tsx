@@ -17,6 +17,47 @@ interface MovimientosFormProps {
   descuentos: Descuento[]
 }
 
+type MovimientoUnificado = {
+  id: string
+  tipo: TipoMovimiento
+  descripcion: string | null
+  monto: number
+  created_at: string
+}
+
+function buildMovimientos(
+  gastos: Gasto[],
+  transferencias: Transferencia[],
+  descuentos: Descuento[],
+): MovimientoUnificado[] {
+  return [
+    ...gastos.map((g) => ({
+      id: g.id,
+      tipo: 'gasto' as TipoMovimiento,
+      descripcion: g.descripcion,
+      monto: g.monto,
+      created_at: g.created_at,
+    })),
+    ...transferencias.map((t) => ({
+      id: t.id,
+      tipo: 'transferencia' as TipoMovimiento,
+      descripcion: t.descripcion,
+      monto: t.monto,
+      created_at: t.created_at,
+    })),
+    ...descuentos.map((d) => ({
+      id: d.id,
+      tipo: 'descuento' as TipoMovimiento,
+      descripcion: d.descripcion,
+      monto: d.monto,
+      created_at: d.created_at,
+    })),
+  ].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  )
+}
+
 export function MovimientosForm({
   jornadaId,
   vendedorId,
@@ -29,18 +70,31 @@ export function MovimientosForm({
   const { toast } = useToast()
   const { confirm } = useConfirm()
 
-  const [tab, setTab] = useState<TipoMovimiento>('gasto')
+  const [tipo, setTipo] = useState<TipoMovimiento>('gasto')
   const [descripcion, setDescripcion] = useState('')
   const [monto, setMonto] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const tabs: { key: TipoMovimiento; label: string }[] = [
-    { key: 'gasto', label: 'Gastos' },
-    { key: 'transferencia', label: 'Transf.' },
-    { key: 'descuento', label: 'Descuentos' },
-  ]
+  // Local state for movements — allows optimistic / immediate updates
+  const [movimientos, setMovimientos] = useState<MovimientoUnificado[]>(
+    buildMovimientos(
+      gastosIniciales,
+      transferenciasIniciales,
+      descuentosIniciales,
+    ),
+  )
+
+  const totalGastos = movimientos
+    .filter((m) => m.tipo === 'gasto')
+    .reduce((sum, m) => sum + m.monto, 0)
+  const totalTransferencias = movimientos
+    .filter((m) => m.tipo === 'transferencia')
+    .reduce((sum, m) => sum + m.monto, 0)
+  const totalDescuentos = movimientos
+    .filter((m) => m.tipo === 'descuento')
+    .reduce((sum, m) => sum + m.monto, 0)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -52,7 +106,7 @@ export function MovimientosForm({
       return
     }
 
-    if (tab === 'gasto' && !descripcion.trim()) {
+    if (tipo === 'gasto' && !descripcion.trim()) {
       setError('La descripcion es requerida para gastos')
       return
     }
@@ -60,30 +114,83 @@ export function MovimientosForm({
     setLoading(true)
 
     let insertError
-    if (tab === 'gasto') {
-      const { error } = await supabase.from('gastos').insert({
-        jornada_id: jornadaId,
-        vendedor_id: vendedorId,
-        descripcion: descripcion.trim(),
-        monto: montoNum,
-      })
+    let insertedId: string | null = null
+
+    if (tipo === 'gasto') {
+      const { data, error } = await supabase
+        .from('gastos')
+        .insert({
+          jornada_id: jornadaId,
+          vendedor_id: vendedorId,
+          descripcion: descripcion.trim(),
+          monto: montoNum,
+        })
+        .select('id, created_at')
+        .single()
       insertError = error
-    } else if (tab === 'transferencia') {
-      const { error } = await supabase.from('transferencias').insert({
-        jornada_id: jornadaId,
-        vendedor_id: vendedorId,
-        monto: montoNum,
-        descripcion: descripcion.trim() || null,
-      })
+      insertedId = data?.id ?? null
+      if (data) {
+        setMovimientos((prev) => [
+          ...prev,
+          {
+            id: data.id,
+            tipo: 'gasto',
+            descripcion: descripcion.trim(),
+            monto: montoNum,
+            created_at: data.created_at,
+          },
+        ])
+      }
+    } else if (tipo === 'transferencia') {
+      const { data, error } = await supabase
+        .from('transferencias')
+        .insert({
+          jornada_id: jornadaId,
+          vendedor_id: vendedorId,
+          monto: montoNum,
+          descripcion: descripcion.trim() || null,
+        })
+        .select('id, created_at')
+        .single()
       insertError = error
+      insertedId = data?.id ?? null
+      if (data) {
+        setMovimientos((prev) => [
+          ...prev,
+          {
+            id: data.id,
+            tipo: 'transferencia',
+            descripcion: descripcion.trim() || null,
+            monto: montoNum,
+            created_at: data.created_at,
+          },
+        ])
+      }
     } else {
-      const { error } = await supabase.from('descuentos').insert({
-        jornada_id: jornadaId,
-        vendedor_id: vendedorId,
-        monto: montoNum,
-        descripcion: descripcion.trim() || null,
-      })
+      const { data, error } = await supabase
+        .from('descuentos')
+        .insert({
+          jornada_id: jornadaId,
+          vendedor_id: vendedorId,
+          monto: montoNum,
+          descripcion: descripcion.trim() || null,
+        })
+        .select('id, created_at')
+        .single()
       insertError = error
+      insertedId = data?.id ?? null
+      if (data) {
+        setMovimientos((prev) => [
+          ...prev,
+          {
+            id: data.id,
+            tipo: 'descuento',
+            descripcion: descripcion.trim() || null,
+            monto: montoNum,
+            created_at: data.created_at,
+          },
+        ])
+      }
     }
 
     if (insertError) {
@@ -95,24 +202,23 @@ export function MovimientosForm({
     setDescripcion('')
     setMonto('')
     setLoading(false)
-    router.refresh()
     const labels = {
       gasto: 'Gasto',
       transferencia: 'Transferencia',
       descuento: 'Descuento',
     }
-    toast(`${labels[tab]} agregado`)
+    toast(`${labels[tipo]} agregado`)
   }
 
-  async function handleDelete(tipo: TipoMovimiento, id: string) {
+  async function handleDelete(tipoMov: TipoMovimiento, id: string) {
     const labels = {
       gasto: 'gasto',
       transferencia: 'transferencia',
       descuento: 'descuento',
     }
     const ok = await confirm({
-      title: `Eliminar ${labels[tipo]}`,
-      message: `¿Estas seguro de eliminar este ${labels[tipo]}?`,
+      title: `Eliminar ${labels[tipoMov]}`,
+      message: `¿Estas seguro de eliminar este ${labels[tipoMov]}?`,
       confirmLabel: 'Eliminar',
       variant: 'danger',
     })
@@ -120,66 +226,76 @@ export function MovimientosForm({
 
     setDeletingId(id)
     const table =
-      tipo === 'gasto'
+      tipoMov === 'gasto'
         ? 'gastos'
-        : tipo === 'transferencia'
+        : tipoMov === 'transferencia'
           ? 'transferencias'
           : 'descuentos'
 
-    await supabase.from(table).delete().eq('id', id)
+    const { error } = await supabase.from(table).delete().eq('id', id)
+
+    if (!error) {
+      // Remove from local state immediately
+      setMovimientos((prev) => prev.filter((m) => m.id !== id))
+    }
+
     setDeletingId(null)
-    router.refresh()
     toast('Eliminado')
   }
 
-  const totalGastos = gastosIniciales.reduce((sum, g) => sum + g.monto, 0)
-  const totalTransferencias = transferenciasIniciales.reduce(
-    (sum, t) => sum + t.monto,
-    0,
-  )
-  const totalDescuentos = descuentosIniciales.reduce(
-    (sum, d) => sum + d.monto,
-    0,
-  )
+  const tipoLabels: Record<TipoMovimiento, string> = {
+    gasto: 'Gasto',
+    transferencia: 'Transferencia',
+    descuento: 'Descuento',
+  }
+
+  const tipoColors: Record<TipoMovimiento, string> = {
+    gasto: 'bg-red-100 text-red-700',
+    transferencia: 'bg-blue-100 text-blue-700',
+    descuento: 'bg-yellow-100 text-yellow-700',
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Tabs */}
-      <div className="flex rounded-lg bg-gray-100 p-1">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-              tab === t.key
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
       {/* Formulario */}
       <form
         onSubmit={handleSubmit}
         className="rounded-xl bg-white p-4 shadow-sm"
       >
         <div className="flex flex-col gap-3">
+          {/* Type select */}
+          <div>
+            <label
+              htmlFor="tipo"
+              className="mb-1 block text-sm font-medium text-gray-700"
+            >
+              Tipo de movimiento
+            </label>
+            <select
+              id="tipo"
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as TipoMovimiento)}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+            >
+              <option value="gasto">Gasto</option>
+              <option value="transferencia">Transferencia</option>
+              <option value="descuento">Descuento</option>
+            </select>
+          </div>
+
           <Input
             id="descripcion"
-            label={tab === 'gasto' ? 'Descripcion' : 'Descripcion (opcional)'}
+            label={tipo === 'gasto' ? 'Descripcion' : 'Descripcion (opcional)'}
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
             placeholder={
-              tab === 'gasto'
+              tipo === 'gasto'
                 ? 'Ej: Refrigerio'
-                : tab === 'transferencia'
+                : tipo === 'transferencia'
                   ? 'Ej: Pago cliente Maria'
                   : 'Ej: Empanadas a $1.50'
             }
-            required={tab === 'gasto'}
+            required={tipo === 'gasto'}
           />
           <Input
             id="monto"
@@ -195,121 +311,48 @@ export function MovimientosForm({
           />
           {error && <p className="text-sm text-red-500">{error}</p>}
           <Button type="submit" loading={loading}>
-            Agregar{' '}
-            {tab === 'gasto'
-              ? 'gasto'
-              : tab === 'transferencia'
-                ? 'transferencia'
-                : 'descuento'}
+            Agregar {tipoLabels[tipo].toLowerCase()}
           </Button>
         </div>
       </form>
 
-      {/* Lista de gastos */}
-      {gastosIniciales.length > 0 && (
+      {/* Lista unificada de movimientos */}
+      {movimientos.length > 0 && (
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-medium text-gray-900">Gastos</h3>
-            <span className="text-sm font-medium text-red-600">
-              -{formatCurrency(totalGastos)}
-            </span>
-          </div>
+          <h3 className="mb-3 font-medium text-gray-900">
+            Movimientos registrados
+          </h3>
           <div className="flex flex-col gap-2">
-            {gastosIniciales.map((gasto) => (
+            {movimientos.map((mov) => (
               <div
-                key={gasto.id}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+                key={mov.id}
+                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5"
               >
-                <span className="text-sm text-gray-700">
-                  {gasto.descripcion}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {formatCurrency(gasto.monto)}
-                  </span>
-                  <button
-                    onClick={() => handleDelete('gasto', gasto.id)}
-                    disabled={deletingId === gasto.id}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                    aria-label="Eliminar gasto"
-                  >
-                    {deletingId === gasto.id ? '...' : 'X'}
-                  </button>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tipoColors[mov.tipo]}`}
+                    >
+                      {tipoLabels[mov.tipo]}
+                    </span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatCurrency(mov.monto)}
+                    </span>
+                  </div>
+                  {mov.descripcion && (
+                    <span className="text-xs text-gray-500">
+                      {mov.descripcion}
+                    </span>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Lista de transferencias */}
-      {transferenciasIniciales.length > 0 && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-medium text-gray-900">Transferencias</h3>
-            <span className="text-sm font-medium text-blue-600">
-              -{formatCurrency(totalTransferencias)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {transferenciasIniciales.map((trans) => (
-              <div
-                key={trans.id}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
-              >
-                <span className="text-sm text-gray-700">
-                  {trans.descripcion || 'Transferencia'}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {formatCurrency(trans.monto)}
-                  </span>
-                  <button
-                    onClick={() => handleDelete('transferencia', trans.id)}
-                    disabled={deletingId === trans.id}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                    aria-label="Eliminar transferencia"
-                  >
-                    {deletingId === trans.id ? '...' : 'X'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Lista de descuentos */}
-      {descuentosIniciales.length > 0 && (
-        <div className="rounded-xl bg-white p-4 shadow-sm">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-medium text-gray-900">Descuentos</h3>
-            <span className="text-sm font-medium text-yellow-600">
-              -{formatCurrency(totalDescuentos)}
-            </span>
-          </div>
-          <div className="flex flex-col gap-2">
-            {descuentosIniciales.map((desc) => (
-              <div
-                key={desc.id}
-                className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
-              >
-                <span className="text-sm text-gray-700">
-                  {desc.descripcion || 'Descuento'}
-                </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {formatCurrency(desc.monto)}
-                  </span>
-                  <button
-                    onClick={() => handleDelete('descuento', desc.id)}
-                    disabled={deletingId === desc.id}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                    aria-label="Eliminar descuento"
-                  >
-                    {deletingId === desc.id ? '...' : 'X'}
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleDelete(mov.tipo, mov.id)}
+                  disabled={deletingId === mov.id}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                  aria-label="Eliminar"
+                >
+                  {deletingId === mov.id ? '...' : 'X'}
+                </button>
               </div>
             ))}
           </div>

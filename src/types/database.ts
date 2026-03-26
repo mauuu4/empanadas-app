@@ -115,6 +115,7 @@ export interface Database {
           fecha: string
           estado: 'abierta' | 'cerrada'
           monto_alcancia: number
+          valor_adicional: number
           notas: string | null
           created_at: string
           updated_at: string
@@ -125,6 +126,7 @@ export interface Database {
           fecha: string
           estado?: 'abierta' | 'cerrada'
           monto_alcancia?: number
+          valor_adicional?: number
           notas?: string | null
           created_at?: string
           updated_at?: string
@@ -135,6 +137,7 @@ export interface Database {
           fecha?: string
           estado?: 'abierta' | 'cerrada'
           monto_alcancia?: number
+          valor_adicional?: number
           notas?: string | null
           created_at?: string
           updated_at?: string

@@ -4,6 +4,8 @@ import { formatCurrency, formatDateShort } from '@/lib/utils'
 import { Card, CardContent, CardTitle, Badge } from '@/components/ui'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 const MESES = [
   'Enero',
   'Febrero',

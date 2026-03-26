@@ -4,6 +4,8 @@ import { today } from '@/lib/utils'
 import { AsignarProductosForm } from '@/components/jornada/AsignarProductosForm'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AsignarPage() {
   const supabase = await createClient()
 

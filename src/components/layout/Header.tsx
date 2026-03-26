@@ -14,8 +14,7 @@ export function Header({ vendedor }: HeaderProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    window.location.href = '/login'
   }
 
   return (

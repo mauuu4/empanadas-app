@@ -5,6 +5,8 @@ import { Card, CardContent, CardTitle } from '@/components/ui'
 import { CierreDiaForm } from '@/components/jornada/CierreDiaForm'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function ResumenPage() {
   const supabase = await createClient()
 
@@ -45,6 +47,13 @@ export default async function ResumenPage() {
       </div>
     )
   }
+
+  // Buscar todos los vendedores activos (para el select de pagas)
+  const { data: todosVendedores } = await supabase
+    .from('vendedores')
+    .select('id, nombre')
+    .eq('activo', true)
+    .order('nombre', { ascending: true })
 
   // Buscar todos los vendedores que tienen asignaciones hoy
   const { data: asignaciones } = await supabase
@@ -87,7 +96,12 @@ export default async function ResumenPage() {
             jornadaId={jornada.id}
             efectivoTotal={0}
             montoAlcancia={jornada.monto_alcancia}
+            valorAdicional={jornada.valor_adicional}
             pagasExistentes={[]}
+            trabajadores={(todosVendedores ?? []).map((v) => ({
+              id: v.id,
+              nombre: v.nombre,
+            }))}
             isAdmin={isAdmin}
             isCerrada={jornada.estado === 'cerrada'}
           />
@@ -321,10 +335,15 @@ export default async function ResumenPage() {
           jornadaId={jornada.id}
           efectivoTotal={totales.efectivo}
           montoAlcancia={jornada.monto_alcancia}
+          valorAdicional={jornada.valor_adicional}
           pagasExistentes={(pagasExistentes ?? []).map((p) => ({
             id: p.id,
             persona: p.persona,
             monto: p.monto,
+          }))}
+          trabajadores={(todosVendedores ?? []).map((v) => ({
+            id: v.id,
+            nombre: v.nombre,
           }))}
           isAdmin={isAdmin}
           isCerrada={jornada.estado === 'cerrada'}

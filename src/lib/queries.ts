@@ -7,6 +7,7 @@ export type JornadaResumen = {
   dia: string
   estado: string
   ventaTotal: number
+  valorAdicional: number
   totalGastos: number
   totalTransferencias: number
   totalDescuentos: number
@@ -119,7 +120,7 @@ export async function calcularResumenSemana(
       0,
     )
     const totalDesc = (descuentos ?? []).reduce((sum, d) => sum + d.monto, 0)
-    const efectivoTotal = ventaTotal - totalGastos - totalTransf - totalDesc
+    const efectivoTotal = ventaTotal + j.valor_adicional - totalGastos - totalTransf - totalDesc
 
     const { data: pagas } = await supabase
       .from('pagas')
@@ -134,6 +135,7 @@ export async function calcularResumenSemana(
       dia: getDiaSemana(j.fecha),
       estado: j.estado,
       ventaTotal,
+      valorAdicional: j.valor_adicional,
       totalGastos,
       totalTransferencias: totalTransf,
       totalDescuentos: totalDesc,

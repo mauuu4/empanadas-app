@@ -6,6 +6,8 @@ import { CerrarSemanaForm } from '@/components/semana/CerrarSemanaForm'
 import { calcularResumenSemana } from '@/lib/queries'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SemanaPage() {
   const supabase = await createClient()
 
