@@ -127,6 +127,8 @@ export default async function ResumenPage() {
     .from('productos')
     .select('id, nombre, precio')
     .in('id', productoIds)
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
 
   const productosMap = new Map((productos ?? []).map((p) => [p.id, p]))
   const vendedoresMap = new Map((vendedores ?? []).map((v) => [v.id, v]))

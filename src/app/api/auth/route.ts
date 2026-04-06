@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
 import { generateInternalEmail } from '@/lib/utils'
 import { NextResponse } from 'next/server'
 
@@ -42,10 +43,20 @@ export async function POST(request: Request) {
 
     const email = generateInternalEmail(nombre)
 
-    // Crear usuario en Supabase Auth con el admin client
-    // NOTA: Para crear usuarios se necesita el service_role key
-    // Por ahora usamos signUp con el anon key (funciona si no hay restricciones de email)
-    const { error: signUpError } = await supabase.auth.signUp({
+    // Usar un cliente separado para signUp para que NO sobreescriba
+    // las cookies de sesion del admin actual
+    const signUpClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return [] },
+          setAll() { /* No escribir cookies - evita corromper la sesion del admin */ },
+        },
+      },
+    )
+
+    const { error: signUpError } = await signUpClient.auth.signUp({
       email,
       password: pin,
       options: {

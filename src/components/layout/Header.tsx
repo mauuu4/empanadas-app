@@ -14,6 +14,10 @@ export function Header({ vendedor }: HeaderProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    // Limpiar cache del Service Worker para evitar datos de sesion anterior
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
+    }
     window.location.href = '/login'
   }
 

@@ -1,13 +1,11 @@
 // Service Worker for Empanadas App
 // Strategy: Network First for pages, Cache First for static assets
-// Data (Supabase API calls) is never cached - always requires internet
+// Data (Supabase API calls and Next.js RSC) is never cached
 
-const CACHE_NAME = 'empanadas-app-v1'
+const CACHE_NAME = 'empanadas-app-v2'
 
 // Static assets to pre-cache on install
 const PRECACHE_URLS = [
-  '/login',
-  '/dashboard',
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png',
   '/manifest.json',
@@ -39,6 +37,15 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+// Listen for messages from the app (e.g. clear cache on logout)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((cacheNames) =>
+      Promise.all(cacheNames.map((name) => caches.delete(name))),
+    )
+  }
+})
+
 // Fetch: different strategies based on request type
 self.addEventListener('fetch', (event) => {
   const { request } = event
@@ -55,6 +62,14 @@ self.addEventListener('fetch', (event) => {
 
   // Skip Next.js HMR/dev requests
   if (url.pathname.startsWith('/_next/webpack-hmr')) return
+
+  // Skip Next.js RSC data fetches - these carry user-specific data
+  // and must ALWAYS be fresh to avoid serving stale session data
+  if (
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-State-Tree') ||
+    url.searchParams.has('_rsc')
+  ) return
 
   // For static assets (_next/static): Cache First
   if (url.pathname.startsWith('/_next/static/')) {
@@ -109,16 +124,12 @@ self.addEventListener('fetch', (event) => {
           caches.match(request).then(
             (cached) =>
               cached ||
-              caches.match('/dashboard').then(
-                (fallback) =>
-                  fallback ||
-                  new Response(
-                    'Sin conexion. Por favor, verifica tu internet.',
-                    {
-                      status: 503,
-                      headers: { 'Content-Type': 'text/html; charset=utf-8' },
-                    },
-                  ),
+              new Response(
+                'Sin conexion. Por favor, verifica tu internet.',
+                {
+                  status: 503,
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' },
+                },
               ),
           ),
         ),
@@ -126,18 +137,14 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // For other requests (JS, CSS, fonts): Stale While Revalidate
+  // For other requests (JS, CSS, fonts): Network First
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const fetchPromise = fetch(request)
-        .then((response) => {
-          const clone = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
-          return response
-        })
-        .catch(() => cached)
-
-      return cached || fetchPromise
-    }),
+    fetch(request)
+      .then((response) => {
+        const clone = response.clone()
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone))
+        return response
+      })
+      .catch(() => caches.match(request)),
   )
 })

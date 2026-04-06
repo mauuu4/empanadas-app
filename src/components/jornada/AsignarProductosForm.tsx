@@ -73,6 +73,15 @@ export function AsignarProductosForm({
       return
     }
 
+    // Verificar que el usuario autenticado coincide con el vendedor
+    const { data: { user } } = await supabase.auth.getUser()
+    const authVendedorId = user?.user_metadata?.vendedor_id as string | undefined
+    if (authVendedorId && authVendedorId !== vendedorId) {
+      setError('Sesion invalida. Por favor cierra sesion e ingresa de nuevo.')
+      setLoading(false)
+      return
+    }
+
     const { error: deleteError } = await supabase
       .from('asignaciones')
       .delete()

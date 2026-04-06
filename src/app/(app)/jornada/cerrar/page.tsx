@@ -79,14 +79,18 @@ export default async function CerrarPage() {
     .from('productos')
     .select('*')
     .in('id', productoIds)
+    .order('orden', { ascending: true })
+    .order('nombre', { ascending: true })
 
   const productosMap = new Map((productos ?? []).map((p) => [p.id, p]))
 
-  const asignaciones = asignacionesRaw
-    .map((a) => ({
-      ...a,
-      producto: productosMap.get(a.producto_id)!,
-    }))
+  // Build ordered list: iterate productos (already sorted) and match asignaciones
+  const productosOrdenados = (productos ?? []).filter((p) => asignacionesRaw.some((a) => a.producto_id === p.id))
+  const asignaciones = productosOrdenados
+    .map((p) => {
+      const a = asignacionesRaw.find((a) => a.producto_id === p.id)!
+      return { ...a, producto: p }
+    })
     .filter((a) => a.producto)
 
   const [{ data: gastos }, { data: transferencias }, { data: descuentos }] =
