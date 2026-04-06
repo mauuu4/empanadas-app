@@ -32,9 +32,9 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8f9fb]">
       <Header vendedor={vendedor} />
-      <main className="mx-auto max-w-lg px-4 pb-20 pt-4">{children}</main>
+      <main className="mx-auto max-w-lg px-4 pb-24 pt-5">{children}</main>
       <Navbar />
     </div>
   )

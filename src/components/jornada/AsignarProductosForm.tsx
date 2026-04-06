@@ -26,7 +26,6 @@ export function AsignarProductosForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Inicializar cantidades desde las asignaciones existentes
   const initialCantidades: Record<string, string> = {}
   for (const prod of productos) {
     const asig = asignaciones.find((a) => a.producto_id === prod.id)
@@ -56,7 +55,6 @@ export function AsignarProductosForm({
     setLoading(true)
     setError('')
 
-    // Preparar las asignaciones a guardar
     const nuevasAsignaciones = productos
       .filter((prod) => {
         const cantidad = parseInt(cantidades[prod.id] || '0', 10)
@@ -75,7 +73,6 @@ export function AsignarProductosForm({
       return
     }
 
-    // Eliminar asignaciones existentes de este vendedor en esta jornada
     const { error: deleteError } = await supabase
       .from('asignaciones')
       .delete()
@@ -88,7 +85,6 @@ export function AsignarProductosForm({
       return
     }
 
-    // Insertar nuevas asignaciones
     const { error: insertError } = await supabase
       .from('asignaciones')
       .insert(nuevasAsignaciones)
@@ -118,34 +114,37 @@ export function AsignarProductosForm({
           return (
             <div
               key={producto.id}
-              className="rounded-xl bg-white p-4 shadow-sm"
+              className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 transition-shadow duration-150 hover:shadow-card-hover"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h4 className="font-medium text-gray-900">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900">
                     {producto.nombre}
                   </h4>
-                  <p className="text-sm text-gray-500">
-                    {producto.unidades_por_bandeja} uds -{' '}
+                  <p className="text-xs text-gray-400">
+                    {producto.unidades_por_bandeja} uds &middot;{' '}
                     {formatCurrency(producto.precio)}/bandeja
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="shrink-0">
                   <Input
                     type="number"
                     min="0"
                     value={cantidades[producto.id] || ''}
                     onChange={(e) => handleChange(producto.id, e.target.value)}
                     placeholder="0"
-                    className="w-20 text-center"
+                    className="!w-20 text-center !text-lg !font-bold"
                     inputMode="numeric"
                   />
                 </div>
               </div>
               {subtotal > 0 && (
-                <p className="mt-1 text-right text-sm font-medium text-orange-600">
-                  {formatCurrency(subtotal)}
-                </p>
+                <div className="mt-2 flex items-center justify-between rounded-lg bg-orange-50/70 px-3 py-1.5">
+                  <span className="text-xs text-gray-500">{cantidad} bandejas</span>
+                  <span className="text-sm font-semibold text-orange-600">
+                    {formatCurrency(subtotal)}
+                  </span>
+                </div>
               )}
             </div>
           )
@@ -153,16 +152,23 @@ export function AsignarProductosForm({
       </div>
 
       {/* Total */}
-      <div className="rounded-xl bg-orange-50 p-4">
+      <div className="rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <span className="font-medium text-gray-900">Total potencial</span>
-          <span className="text-lg font-bold text-orange-600">
+          <span className="text-sm font-medium text-orange-100">Total potencial</span>
+          <span className="text-xl font-bold text-white">
             {formatCurrency(total)}
           </span>
         </div>
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600 ring-1 ring-inset ring-red-200/60">
+          <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </div>
+      )}
 
       <Button type="submit" loading={loading} size="lg">
         Guardar asignacion

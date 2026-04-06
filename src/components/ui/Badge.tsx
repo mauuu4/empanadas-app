@@ -12,16 +12,16 @@ function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: 'bg-gray-100 text-gray-700',
-    success: 'bg-green-100 text-green-700',
-    warning: 'bg-yellow-100 text-yellow-700',
-    danger: 'bg-red-100 text-red-700',
+    default: 'bg-gray-100 text-gray-600 ring-gray-200/60',
+    success: 'bg-emerald-50 text-emerald-700 ring-emerald-200/60',
+    warning: 'bg-amber-50 text-amber-700 ring-amber-200/60',
+    danger: 'bg-red-50 text-red-700 ring-red-200/60',
   }
 
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset',
         variants[variant],
         className,
       )}

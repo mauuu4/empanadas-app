@@ -92,7 +92,7 @@ function ProductoForm({ producto, onClose }: ProductoFormProps) {
   }
 
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80">
       <h3 className="mb-4 text-lg font-semibold text-gray-900">
         {isEditing ? 'Editar producto' : 'Nuevo producto'}
       </h3>
@@ -187,17 +187,17 @@ function ProductoRow({ producto, onEdit }: ProductoRowProps) {
 
   return (
     <div
-      className={`rounded-xl bg-white p-4 shadow-sm ${!producto.activo ? 'opacity-60' : ''}`}
+      className={`rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 ${!producto.activo ? 'opacity-60' : ''}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h4 className="font-medium text-gray-900">{producto.nombre}</h4>
             <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${
                 producto.activo
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-500'
+                  ? 'bg-emerald-50 text-emerald-700 ring-emerald-200/60'
+                  : 'bg-gray-100 text-gray-500 ring-gray-200/60'
               }`}
             >
               {producto.activo ? 'Activo' : 'Inactivo'}
@@ -254,7 +254,7 @@ export function ProductosList({ productos }: ProductosListProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Productos</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Productos</h1>
         {!showForm && (
           <Button size="sm" onClick={() => setShowForm(true)}>
             Agregar

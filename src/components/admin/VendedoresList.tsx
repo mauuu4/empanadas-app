@@ -117,7 +117,7 @@ function VendedorForm({ vendedor, onClose }: VendedorFormProps) {
   }
 
   return (
-    <div className="rounded-xl bg-white p-4 shadow-sm">
+    <div className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80">
       <h3 className="mb-4 text-lg font-semibold text-gray-900">
         {isEditing ? 'Editar vendedor' : 'Nuevo vendedor'}
       </h3>
@@ -152,7 +152,7 @@ function VendedorForm({ vendedor, onClose }: VendedorFormProps) {
             id="rol"
             value={rol}
             onChange={(e) => setRol(e.target.value as Rol)}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-base transition-colors focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-base text-gray-900 transition-all duration-150 hover:border-gray-300 hover:bg-white focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >
             <option value="vendedor">Vendedor</option>
             <option value="admin">Administrador</option>
@@ -201,12 +201,12 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
 
   return (
     <div
-      className={`rounded-xl bg-white p-4 shadow-sm ${!vendedor.activo ? 'opacity-60' : ''}`}
+      className={`rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 ${!vendedor.activo ? 'opacity-60' : ''}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-sm font-semibold text-orange-600">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-orange-400 to-orange-600 text-sm font-bold text-white shadow-sm">
               {vendedor.nombre.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -215,8 +215,8 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                     vendedor.rol === 'admin'
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'bg-blue-100 text-blue-700'
+                      ? 'bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-200/60'
+                      : 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200/60'
                   }`}
                 >
                   {vendedor.rol === 'admin' ? 'Admin' : 'Vendedor'}
@@ -224,8 +224,8 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                     vendedor.activo
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
+                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60'
+                      : 'bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200/60'
                   }`}
                 >
                   {vendedor.activo ? 'Activo' : 'Inactivo'}
@@ -273,7 +273,7 @@ export function VendedoresList({ vendedores }: VendedoresListProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900">Vendedores</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Vendedores</h1>
         {!showForm && (
           <Button size="sm" onClick={() => setShowForm(true)}>
             Agregar

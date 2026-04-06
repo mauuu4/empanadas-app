@@ -71,16 +71,19 @@ export default async function ResumenPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Resumen del dia</h1>
-            <p className="text-sm capitalize text-gray-500">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Resumen del dia</h1>
+            <p className="mt-0.5 text-sm capitalize text-gray-400">
               {formatDate(fechaHoy)}
             </p>
           </div>
           <Link
             href="/jornada"
-            className="text-sm font-medium text-orange-600 hover:text-orange-700"
+            className="flex items-center gap-1 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600"
           >
-            &larr; Volver
+            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+            </svg>
+            Volver
           </Link>
         </div>
         <Card>
@@ -228,19 +231,22 @@ export default async function ResumenPage() {
   )
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5 stagger-children">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Resumen del dia</h1>
-          <p className="text-sm capitalize text-gray-500">
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Resumen del dia</h1>
+          <p className="mt-0.5 text-sm capitalize text-gray-400">
             {formatDate(fechaHoy)}
           </p>
         </div>
         <Link
           href="/jornada"
-          className="text-sm font-medium text-orange-600 hover:text-orange-700"
+          className="flex items-center gap-1 text-sm font-medium text-gray-400 transition-colors hover:text-gray-600"
         >
-          &larr; Volver
+          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+          </svg>
+          Volver
         </Link>
       </div>
 
@@ -250,7 +256,7 @@ export default async function ResumenPage() {
           <div className="flex items-center justify-between">
             <CardTitle>{v.nombre}</CardTitle>
             {!v.hasCerrado && (
-              <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-700">
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200/60">
                 Sin cerrar
               </span>
             )}
@@ -293,9 +299,9 @@ export default async function ResumenPage() {
       ))}
 
       {/* Totales */}
-      <div className="rounded-xl bg-gray-900 p-4 text-white">
-        <h3 className="mb-3 font-semibold">Totales del dia</h3>
-        <div className="flex flex-col gap-1 text-sm">
+      <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-5 text-white shadow-elevated">
+        <h3 className="mb-3 text-sm font-semibold text-gray-300">Totales del dia</h3>
+        <div className="flex flex-col gap-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-300">Venta total</span>
             <span className="font-medium">

@@ -37,7 +37,6 @@ export function CerrarVentaForm({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Inicializar sobrantes desde las asignaciones existentes
   const initialSobrantes: Record<string, string> = {}
   for (const asig of asignaciones) {
     initialSobrantes[asig.id] =
@@ -101,7 +100,6 @@ export function CerrarVentaForm({
     setLoading(true)
     setError('')
 
-    // Validar que los sobrantes no sean mayores que las cantidades iniciales
     for (const asig of asignaciones) {
       const sobrante = parseInt(sobrantes[asig.id] || '0', 10)
       if (isNaN(sobrante) || sobrante < 0) {
@@ -118,7 +116,6 @@ export function CerrarVentaForm({
       }
     }
 
-    // Actualizar sobrantes en cada asignacion
     for (const asig of asignaciones) {
       const sobrante = parseInt(sobrantes[asig.id] || '0', 10)
       const { error: updateError } = await supabase
@@ -140,7 +137,6 @@ export function CerrarVentaForm({
   }
 
   const { detalles, ventaBruta, efectivo } = calcularResumen()
-  // Check if all sobrantes are filled (user has entered a value for all assignments)
   const allFilled = asignaciones.every(
     (asig) => sobrantes[asig.id] !== undefined && sobrantes[asig.id] !== '',
   )
@@ -155,18 +151,18 @@ export function CerrarVentaForm({
             asig.cantidad_inicial - (isNaN(sobrante) ? 0 : sobrante)
 
           return (
-            <div key={asig.id} className="rounded-xl bg-white p-4 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">
+            <div key={asig.id} className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900">
                     {asig.producto.nombre}
                   </h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="mt-0.5 text-xs text-gray-400">
                     Lleva: {asig.cantidad_inicial} bandejas
                   </p>
                 </div>
-                <div className="text-right">
-                  <label className="mb-1 block text-xs text-gray-500">
+                <div className="shrink-0 text-right">
+                  <label className="mb-1.5 block text-[11px] font-medium text-gray-400">
                     Sobrante
                   </label>
                   <Input
@@ -176,17 +172,17 @@ export function CerrarVentaForm({
                     value={sobrantes[asig.id] || ''}
                     onChange={(e) => handleChange(asig.id, e.target.value)}
                     placeholder="0"
-                    className="w-20 text-center"
+                    className="!w-20 text-center !text-lg !font-bold"
                     inputMode="numeric"
                   />
                 </div>
               </div>
               {sobrantes[asig.id] !== '' && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">
-                    Vendido: {vendido < 0 ? 0 : vendido} bandejas
+                <div className="mt-2.5 flex justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-sm">
+                  <span className="text-gray-500">
+                    Vendido: {vendido < 0 ? 0 : vendido}
                   </span>
-                  <span className="font-medium text-orange-600">
+                  <span className="font-semibold text-orange-600">
                     {formatCurrency(
                       (vendido < 0 ? 0 : vendido) * asig.producto.precio,
                     )}
@@ -200,25 +196,24 @@ export function CerrarVentaForm({
 
       {/* Summary */}
       {allFilled && (
-        <div className="rounded-xl bg-orange-50 p-4">
-          <h3 className="mb-3 font-semibold text-gray-900">Resumen de venta</h3>
+        <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-4 ring-1 ring-inset ring-orange-200/60 animate-slide-up">
+          <h3 className="text-sm font-semibold text-gray-900">Resumen de venta</h3>
 
-          {/* Product details */}
-          <div className="mb-3 flex flex-col gap-1 text-sm">
+          <div className="mt-3 flex flex-col gap-1.5 text-sm">
             {detalles.map((d) => (
               <div key={d.nombre} className="flex justify-between">
-                <span className="text-gray-600">
+                <span className="text-gray-500">
                   {d.nombre} ({d.vendido} vendidas)
                 </span>
-                <span className="font-medium">{formatCurrency(d.monto)}</span>
+                <span className="font-medium text-gray-700">{formatCurrency(d.monto)}</span>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-orange-200 pt-2">
-            <div className="flex flex-col gap-1 text-sm">
+          <div className="mt-3 border-t border-orange-200/60 pt-3">
+            <div className="flex flex-col gap-1.5 text-sm">
               <div className="flex justify-between font-medium">
-                <span>Venta bruta</span>
+                <span className="text-gray-700">Venta bruta</span>
                 <span>{formatCurrency(ventaBruta)}</span>
               </div>
               {totalGastos > 0 && (
@@ -234,13 +229,13 @@ export function CerrarVentaForm({
                 </div>
               )}
               {totalDescuentos > 0 && (
-                <div className="flex justify-between text-yellow-600">
+                <div className="flex justify-between text-amber-600">
                   <span>(-) Descuentos</span>
                   <span>-{formatCurrency(totalDescuentos)}</span>
                 </div>
               )}
-              <div className="mt-1 flex justify-between border-t border-orange-200 pt-2 text-base font-bold">
-                <span>Efectivo a entregar</span>
+              <div className="mt-1.5 flex justify-between rounded-xl bg-white/70 px-3 py-2 text-base font-bold">
+                <span className="text-gray-900">Efectivo a entregar</span>
                 <span className="text-orange-600">
                   {formatCurrency(efectivo)}
                 </span>
@@ -250,7 +245,14 @@ export function CerrarVentaForm({
         </div>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600 ring-1 ring-inset ring-red-200/60">
+          <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          </svg>
+          {error}
+        </div>
+      )}
 
       <Button type="submit" loading={loading} size="lg" disabled={!allFilled}>
         Confirmar cierre
