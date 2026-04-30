@@ -1,6 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
-import { today } from '@/lib/utils'
+import { fechaJornadaActiva } from '@/lib/utils'
 
 /**
  * Ensures a jornada exists for today. Logic:
@@ -16,7 +16,7 @@ export async function ensureJornadaHoy(
   semana: Database['public']['Tables']['semanas']['Row'] | null
   error?: string
 }> {
-  const fechaHoy = today()
+  const fechaHoy = fechaJornadaActiva()
 
   // 1. Check if a jornada for today already exists
   const { data: jornadaExistente } = await supabase
@@ -54,16 +54,16 @@ export async function ensureJornadaHoy(
     semanaId = semanaAbierta.id
   } else {
     // No open semana - create a new one
-    // Calculate the Friday (start) and Thursday (end) of the current business week
-    const now = new Date(
-      new Date().toLocaleString('en-US', { timeZone: 'America/Guayaquil' }),
-    )
-    const dayOfWeek = now.getDay() // 0=dom, 1=lun, ..., 5=vie, 6=sab
+    // Calculate the Friday (start) and Thursday (end) of the business week
+    // anchored on the active jornada date (which can be "yesterday" before 16:00).
+    const [yA, mA, dA] = fechaHoy.split('-').map(Number)
+    const anchor = new Date(Date.UTC(yA, mA - 1, dA))
+    const dayOfWeek = anchor.getUTCDay() // 0=dom, 1=lun, ..., 5=vie, 6=sab
     const daysFromFriday = (dayOfWeek + 2) % 7
-    const viernes = new Date(now)
-    viernes.setDate(now.getDate() - daysFromFriday)
+    const viernes = new Date(anchor)
+    viernes.setUTCDate(anchor.getUTCDate() - daysFromFriday)
     const jueves = new Date(viernes)
-    jueves.setDate(viernes.getDate() + 6)
+    jueves.setUTCDate(viernes.getUTCDate() + 6)
 
     const fechaInicio = viernes.toISOString().split('T')[0]
     const fechaFin = jueves.toISOString().split('T')[0]

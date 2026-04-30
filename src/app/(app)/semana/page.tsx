@@ -107,29 +107,60 @@ export default async function SemanaPage() {
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              {resumen.jornadas.map((j) => (
-                <div
-                  key={j.fecha}
-                  className="flex items-center justify-between rounded-xl bg-gray-50/80 px-3.5 py-3"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold capitalize text-gray-800">
-                      {j.dia}
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                      {formatDateShort(j.fecha)}
-                    </span>
+              {resumen.jornadas.map((j) => {
+                const editable = isAdmin && !isCerrada
+                const content = (
+                  <>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold capitalize text-gray-800">
+                        {j.dia}
+                      </span>
+                      <span className="text-[11px] text-gray-400">
+                        {formatDateShort(j.fecha)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold text-gray-900">
+                          {formatCurrency(j.saldoDia)}
+                        </span>
+                        <span className="text-[11px] text-gray-400">
+                          Venta: {formatCurrency(j.ventaTotal)}
+                        </span>
+                      </div>
+                      {editable && (
+                        <svg
+                          className="h-4 w-4 shrink-0 text-gray-300"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </>
+                )
+                return editable ? (
+                  <Link
+                    key={j.id}
+                    href={`/historial/jornada/${j.id}`}
+                    className="flex items-center justify-between rounded-xl bg-gray-50/80 px-3.5 py-3 transition-all duration-150 hover:bg-gray-100 active:scale-[0.99]"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div
+                    key={j.id}
+                    className="flex items-center justify-between rounded-xl bg-gray-50/80 px-3.5 py-3"
+                  >
+                    {content}
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(j.saldoDia)}
-                    </span>
-                    <span className="text-[11px] text-gray-400">
-                      Venta: {formatCurrency(j.ventaTotal)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
 
               {/* Totales */}
               <div className="mt-2 rounded-xl bg-gray-50/80 p-3.5">

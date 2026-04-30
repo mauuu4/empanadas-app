@@ -3,6 +3,7 @@ import type { Database } from '@/types/database'
 import { DIAS_SEMANA } from '@/lib/constants'
 
 export type JornadaResumen = {
+  id: string
   fecha: string
   dia: string
   estado: string
@@ -131,6 +132,7 @@ export async function calcularResumenSemana(
     const saldoDia = efectivoTotal - j.monto_alcancia - totalPagas
 
     jornadasResumen.push({
+      id: j.id,
       fecha: j.fecha,
       dia: getDiaSemana(j.fecha),
       estado: j.estado,

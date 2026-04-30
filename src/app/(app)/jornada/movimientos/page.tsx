@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { today } from '@/lib/utils'
+import { fechaJornadaActiva } from '@/lib/utils'
 import { MovimientosForm } from '@/components/jornada/MovimientosForm'
 import Link from 'next/link'
 
@@ -16,7 +16,7 @@ export default async function MovimientosPage() {
   if (!user) redirect('/login')
 
   const vendedorId = user.user_metadata.vendedor_id as string
-  const fechaHoy = today()
+  const fechaHoy = fechaJornadaActiva()
 
   const { data: jornada } = await supabase
     .from('jornadas')

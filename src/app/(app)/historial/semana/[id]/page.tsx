@@ -21,6 +21,14 @@ export default async function HistorialSemanaPage({
 
   if (!user) redirect('/login')
 
+  const vendedorId = user.user_metadata.vendedor_id as string
+  const { data: usuario } = await supabase
+    .from('vendedores')
+    .select('rol')
+    .eq('id', vendedorId)
+    .single()
+  const isAdmin = usuario?.rol === 'admin'
+
   // Buscar la semana
   const { data: semana } = await supabase
     .from('semanas')
@@ -92,29 +100,45 @@ export default async function HistorialSemanaPage({
             </p>
           ) : (
             <div className="flex flex-col gap-2">
-              {resumen.jornadas.map((j) => (
-                <div
-                  key={j.fecha}
-                  className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
-                >
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium capitalize text-gray-800">
-                      {j.dia}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {formatDateShort(j.fecha)}
-                    </span>
+              {resumen.jornadas.map((j) => {
+                const editable = isAdmin && semana.estado !== 'cerrada'
+                const content = (
+                  <>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium capitalize text-gray-800">
+                        {j.dia}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatDateShort(j.fecha)}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatCurrency(j.saldoDia)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        Venta: {formatCurrency(j.ventaTotal)}
+                      </span>
+                    </div>
+                  </>
+                )
+                return editable ? (
+                  <Link
+                    key={j.id}
+                    href={`/historial/jornada/${j.id}`}
+                    className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 transition-colors hover:bg-gray-100 active:scale-[0.99]"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div
+                    key={j.id}
+                    className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+                  >
+                    {content}
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(j.saldoDia)}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      Venta: {formatCurrency(j.ventaTotal)}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
 
               {/* Totales */}
               <div className="mt-1 border-t pt-2">

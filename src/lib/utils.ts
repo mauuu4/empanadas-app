@@ -69,6 +69,31 @@ export function today(): string {
 }
 
 /**
+ * Fecha "activa" de la jornada en zona Ecuador.
+ * Antes de las 16:00 → ayer (la jornada anterior sigue siendo la activa).
+ * A partir de las 16:00 → hoy (ya empezó la jornada del día calendario).
+ */
+export function fechaJornadaActiva(): string {
+  const now = new Date()
+  const fechaHoy = now.toLocaleDateString('en-CA', {
+    timeZone: 'America/Guayaquil',
+  })
+  const horaEc = parseInt(
+    now.toLocaleString('en-US', {
+      timeZone: 'America/Guayaquil',
+      hour: '2-digit',
+      hour12: false,
+    }),
+    10,
+  )
+  if (horaEc >= 16) return fechaHoy
+  const [y, m, d] = fechaHoy.split('-').map(Number)
+  const ayer = new Date(Date.UTC(y, m - 1, d))
+  ayer.setUTCDate(ayer.getUTCDate() - 1)
+  return ayer.toISOString().split('T')[0]
+}
+
+/**
  * Normalizar un nombre para usarlo como parte del email interno
  * Ejemplo: "Mauricio Romero" -> "mauricio-romero"
  */

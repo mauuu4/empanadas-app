@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { today, formatDate } from '@/lib/utils'
+import { fechaJornadaActiva, formatDate } from '@/lib/utils'
 import { Card, CardContent, Badge } from '@/components/ui'
 import { ensureJornadaHoy } from '@/lib/jornada-utils'
 import Link from 'next/link'
@@ -59,7 +59,7 @@ export default async function JornadaPage() {
   if (!vendedor) redirect('/login')
 
   const isAdmin = vendedor.rol === 'admin'
-  const fechaHoy = today()
+  const fechaHoy = fechaJornadaActiva()
 
   let jornada = null
 

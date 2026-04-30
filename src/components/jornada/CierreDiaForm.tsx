@@ -19,6 +19,9 @@ interface Trabajador {
 
 interface CierreDiaFormProps {
   jornadaId: string
+  fechaJornada: string
+  semanaId: string
+  semanaCerrada: boolean
   efectivoTotal: number
   montoAlcancia: number
   valorAdicional: number
@@ -26,10 +29,14 @@ interface CierreDiaFormProps {
   trabajadores: Trabajador[]
   isAdmin: boolean
   isCerrada: boolean
+  permitirEdicion?: boolean
 }
 
 export function CierreDiaForm({
   jornadaId,
+  fechaJornada,
+  semanaId,
+  semanaCerrada,
   efectivoTotal,
   montoAlcancia: montoAlcanciaInicial,
   valorAdicional: valorAdicionalInicial,
@@ -37,6 +44,7 @@ export function CierreDiaForm({
   trabajadores,
   isAdmin,
   isCerrada,
+  permitirEdicion = false,
 }: CierreDiaFormProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -83,8 +91,10 @@ export function CierreDiaForm({
     setPagas((prev) => prev.filter((_, i) => i !== index))
   }
 
+  const bloqueado = !permitirEdicion && isCerrada
+
   async function handleCerrar() {
-    if (!isAdmin || isCerrada) return
+    if (!isAdmin || bloqueado) return
 
     const ok = await confirm({
       title: 'Cerrar jornada',
@@ -134,13 +144,41 @@ export function CierreDiaForm({
       }
     }
 
+    // Si la jornada cerrada es de jueves y la semana sigue abierta,
+    // ofrecer cerrar tambien la semana.
+    const dow = new Date(fechaJornada + 'T00:00:00').getDay() // 4 = jueves
+    if (dow === 4 && !semanaCerrada) {
+      const cerrarSemana = await confirm({
+        title: 'Cerrar semana tambien',
+        message:
+          'Cerraste la jornada del jueves. ¿Cerrar tambien la semana? El saldo final pasara como saldo inicial de la nueva semana del viernes.',
+        confirmLabel: 'Cerrar semana',
+        variant: 'danger',
+      })
+      if (cerrarSemana) {
+        const { error: semanaError } = await supabase
+          .from('semanas')
+          .update({ estado: 'cerrada' })
+          .eq('id', semanaId)
+        if (semanaError) {
+          setError(semanaError.message)
+          setLoading(false)
+          return
+        }
+        toast('Jornada y semana cerradas')
+        setLoading(false)
+        router.refresh()
+        return
+      }
+    }
+
     setLoading(false)
     toast('Jornada cerrada')
     router.refresh()
   }
 
   async function handleGuardar() {
-    if (!isAdmin || isCerrada) return
+    if (!isAdmin || bloqueado) return
 
     setLoading(true)
     setError('')
@@ -205,7 +243,7 @@ export function CierreDiaForm({
           placeholder="0.00"
           inputMode="decimal"
           label="Monto adicional ($)"
-          disabled={isCerrada}
+          disabled={bloqueado}
         />
       </div>
 
@@ -222,7 +260,7 @@ export function CierreDiaForm({
           placeholder="0.00"
           inputMode="decimal"
           label="Monto a ahorrar ($)"
-          disabled={isCerrada}
+          disabled={bloqueado}
         />
       </div>
 
@@ -244,7 +282,7 @@ export function CierreDiaForm({
                   <span className="text-sm font-medium">
                     {formatCurrency(paga.monto)}
                   </span>
-                  {!isCerrada && (
+                  {!bloqueado && (
                     <button
                       onClick={() => handleEliminarPaga(index)}
                       className="flex h-7 w-7 items-center justify-center rounded-full text-xs text-red-500 hover:bg-red-50 hover:text-red-700"
@@ -259,7 +297,7 @@ export function CierreDiaForm({
           </div>
         )}
 
-        {!isCerrada && (
+        {!bloqueado && (
           <div className="flex gap-2">
             <select
               value={nuevaPersona}
@@ -330,7 +368,7 @@ export function CierreDiaForm({
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {!isCerrada && (
+      {!bloqueado && (
         <div className="flex flex-col gap-2">
           <Button
             onClick={handleGuardar}
@@ -340,13 +378,15 @@ export function CierreDiaForm({
           >
             Guardar sin cerrar
           </Button>
-          <Button onClick={handleCerrar} loading={loading} size="lg">
-            Cerrar jornada del dia
-          </Button>
+          {!isCerrada && (
+            <Button onClick={handleCerrar} loading={loading} size="lg">
+              Cerrar jornada del dia
+            </Button>
+          )}
         </div>
       )}
 
-      {isCerrada && (
+      {isCerrada && !permitirEdicion && (
         <p className="text-center text-sm font-medium text-green-600">
           Jornada cerrada
         </p>

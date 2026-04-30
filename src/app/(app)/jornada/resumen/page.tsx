@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { today, formatCurrency, formatDate } from '@/lib/utils'
+import { fechaJornadaActiva, formatCurrency, formatDate } from '@/lib/utils'
 import { Card, CardContent, CardTitle } from '@/components/ui'
 import { CierreDiaForm } from '@/components/jornada/CierreDiaForm'
 import Link from 'next/link'
@@ -17,7 +17,7 @@ export default async function ResumenPage() {
   if (!user) redirect('/login')
 
   const vendedorId = user.user_metadata.vendedor_id as string
-  const fechaHoy = today()
+  const fechaHoy = fechaJornadaActiva()
 
   const { data: vendedor } = await supabase
     .from('vendedores')
@@ -33,6 +33,15 @@ export default async function ResumenPage() {
     .select('*')
     .eq('fecha', fechaHoy)
     .single()
+
+  // Cargar la semana asociada para saber si sigue abierta (para el flujo de cierre del jueves)
+  const { data: semana } = jornada
+    ? await supabase
+        .from('semanas')
+        .select('id, estado')
+        .eq('id', jornada.semana_id)
+        .single()
+    : { data: null }
 
   if (!jornada) {
     return (
@@ -97,6 +106,9 @@ export default async function ResumenPage() {
         {isAdmin && (
           <CierreDiaForm
             jornadaId={jornada.id}
+            fechaJornada={jornada.fecha}
+            semanaId={jornada.semana_id}
+            semanaCerrada={semana?.estado === 'cerrada'}
             efectivoTotal={0}
             montoAlcancia={jornada.monto_alcancia}
             valorAdicional={jornada.valor_adicional}
@@ -125,12 +137,28 @@ export default async function ResumenPage() {
   ]
   const { data: productos } = await supabase
     .from('productos')
-    .select('id, nombre, precio')
+    .select('id, nombre, precio, unidades_por_bandeja, orden')
     .in('id', productoIds)
     .order('orden', { ascending: true })
     .order('nombre', { ascending: true })
 
   const productosMap = new Map((productos ?? []).map((p) => [p.id, p]))
+
+  // Sobrantes totales del dia agrupados por producto
+  const sobrantesPorProducto = (productos ?? [])
+    .map((p) => {
+      const totalBandejas = (asignaciones ?? [])
+        .filter(
+          (a) => a.producto_id === p.id && a.cantidad_sobrante !== null,
+        )
+        .reduce((sum, a) => sum + (a.cantidad_sobrante ?? 0), 0)
+      return {
+        nombre: p.nombre,
+        totalBandejas,
+        totalUnidades: totalBandejas * p.unidades_por_bandeja,
+      }
+    })
+    .filter((s) => s.totalBandejas > 0)
   const vendedoresMap = new Map((vendedores ?? []).map((v) => [v.id, v]))
 
   // Buscar movimientos por vendedor
@@ -300,6 +328,36 @@ export default async function ResumenPage() {
         </Card>
       ))}
 
+      {/* Sobrantes totales */}
+      {sobrantesPorProducto.length > 0 && (
+        <Card>
+          <CardTitle>Sobrantes del dia</CardTitle>
+          <CardContent className="mt-2">
+            <div className="flex flex-col gap-2">
+              {sobrantesPorProducto.map((s) => (
+                <div
+                  key={s.nombre}
+                  className="flex items-center justify-between rounded-xl bg-gray-50/80 px-3.5 py-2.5"
+                >
+                  <span className="text-sm font-medium text-gray-800">
+                    {s.nombre}
+                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {s.totalBandejas}{' '}
+                      {s.totalBandejas === 1 ? 'bandeja' : 'bandejas'}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      {s.totalUnidades} unidades
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Totales */}
       <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-5 text-white shadow-elevated">
         <h3 className="mb-3 text-sm font-semibold text-gray-300">Totales del dia</h3>
@@ -341,6 +399,9 @@ export default async function ResumenPage() {
       {isAdmin && (
         <CierreDiaForm
           jornadaId={jornada.id}
+          fechaJornada={jornada.fecha}
+          semanaId={jornada.semana_id}
+          semanaCerrada={semana?.estado === 'cerrada'}
           efectivoTotal={totales.efectivo}
           montoAlcancia={jornada.monto_alcancia}
           valorAdicional={jornada.valor_adicional}
