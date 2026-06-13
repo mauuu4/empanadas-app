@@ -212,7 +212,8 @@ export interface Database {
           id: string
           jornada_id: string
           vendedor_id: string
-          descripcion: string
+          descripcion: string | null
+          categoria: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro'
           monto: number
           created_at: string
         }
@@ -220,7 +221,8 @@ export interface Database {
           id?: string
           jornada_id: string
           vendedor_id: string
-          descripcion: string
+          descripcion?: string | null
+          categoria?: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro'
           monto: number
           created_at?: string
         }
@@ -228,7 +230,8 @@ export interface Database {
           id?: string
           jornada_id?: string
           vendedor_id?: string
-          descripcion?: string
+          descripcion?: string | null
+          categoria?: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro'
           monto?: number
           created_at?: string
         }
@@ -372,7 +375,7 @@ export interface Database {
           fecha: string
           descripcion: string
           monto: number
-          tipo: 'inversion' | 'gasto_personal'
+          tipo: 'inversion' | 'gasto_personal' | 'gasto_general'
           created_at: string
         }
         Insert: {
@@ -381,7 +384,7 @@ export interface Database {
           fecha: string
           descripcion: string
           monto: number
-          tipo: 'inversion' | 'gasto_personal'
+          tipo: 'inversion' | 'gasto_personal' | 'gasto_general'
           created_at?: string
         }
         Update: {

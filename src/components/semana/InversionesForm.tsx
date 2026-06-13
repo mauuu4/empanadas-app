@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Button, Input, useToast, useConfirm } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { useToast } from '@/components/ui/Toast'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
 import type { TipoInversion } from '@/types'
 
@@ -40,16 +43,31 @@ export function InversionesForm({
   const [monto, setMonto] = useState('')
   const [tipo, setTipo] = useState<TipoInversion>('inversion')
 
-  const inversionesList = inversiones.filter((i) => i.tipo === 'inversion')
-  const gastosPersonalesList = inversiones.filter(
-    (i) => i.tipo === 'gasto_personal',
-  )
+  // Single pass to categorize and sum (js-combine-iterations)
+  const inversionesList: InversionItem[] = []
+  const gastosPersonalesList: InversionItem[] = []
+  const gastosGeneralesList: InversionItem[] = []
+  let totalInversiones = 0
+  let totalGastosPersonales = 0
+  let totalGastosGenerales = 0
+  for (const i of inversiones) {
+    if (i.tipo === 'inversion') {
+      inversionesList.push(i)
+      totalInversiones += i.monto
+    } else if (i.tipo === 'gasto_personal') {
+      gastosPersonalesList.push(i)
+      totalGastosPersonales += i.monto
+    } else {
+      gastosGeneralesList.push(i)
+      totalGastosGenerales += i.monto
+    }
+  }
 
-  const totalInversiones = inversionesList.reduce((sum, i) => sum + i.monto, 0)
-  const totalGastosPersonales = gastosPersonalesList.reduce(
-    (sum, i) => sum + i.monto,
-    0,
-  )
+  const tipoLabel: Record<TipoInversion, string> = {
+    inversion: 'inversion',
+    gasto_personal: 'gasto personal',
+    gasto_general: 'gasto general',
+  }
 
   async function handleAgregar() {
     if (!descripcion.trim() || !monto) return
@@ -77,11 +95,7 @@ export function InversionesForm({
     setMonto('')
     setLoading(false)
     router.refresh()
-    toast(
-      tipo === 'inversion'
-        ? 'Inversion registrada'
-        : 'Gasto personal registrado',
-    )
+    toast(`Registro de ${tipoLabel[tipo]} agregado`)
   }
 
   async function handleEliminar(id: string) {
@@ -112,15 +126,15 @@ export function InversionesForm({
     if (items.length === 0) return null
     return (
       <div className="flex flex-col gap-2">
-        <h4 className="text-sm font-medium text-gray-700">{label}</h4>
+        <h4 className="text-sm font-medium text-warm-700">{label}</h4>
         {items.map((item) => (
           <div
             key={item.id}
-            className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+            className="flex items-center justify-between rounded-lg bg-warm-50 px-3 py-2"
           >
             <div className="flex flex-col">
-              <span className="text-sm text-gray-800">{item.descripcion}</span>
-              <span className="text-xs text-gray-500">
+              <span className="text-sm text-warm-800">{item.descripcion}</span>
+              <span className="text-xs text-warm-500">
                 {formatDateShort(item.fecha)}
               </span>
             </div>
@@ -141,7 +155,7 @@ export function InversionesForm({
           </div>
         ))}
         <div className="flex justify-between border-t pt-1 text-sm font-medium">
-          <span className="text-gray-600">Total</span>
+          <span className="text-warm-600">Total</span>
           <span>{formatCurrency(total)}</span>
         </div>
       </div>
@@ -153,43 +167,59 @@ export function InversionesForm({
       {/* Inversiones existentes */}
       {renderList(inversionesList, 'Inversiones (insumos)', totalInversiones)}
       {renderList(
+        gastosGeneralesList,
+        'Gastos generales (negocio)',
+        totalGastosGenerales,
+      )}
+      {renderList(
         gastosPersonalesList,
         'Gastos personales',
         totalGastosPersonales,
       )}
 
       {inversiones.length === 0 && (
-        <p className="py-4 text-center text-sm text-gray-500">
-          No hay inversiones ni gastos personales registrados.
+        <p className="py-4 text-center text-sm text-warm-500">
+          No hay inversiones ni gastos registrados.
         </p>
       )}
 
       {/* Formulario de agregar */}
       {isAdmin && !isCerrada && (
         <div className="rounded-xl bg-white p-4 shadow-sm">
-          <h3 className="mb-3 font-medium text-gray-900">Registrar</h3>
+          <h3 className="mb-3 font-medium text-warm-900">Registrar</h3>
 
           <div className="flex flex-col gap-3">
             {/* Tipo */}
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={() => setTipo('inversion')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
                   tipo === 'inversion'
                     ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700'
+                    : 'bg-warm-100 text-warm-700'
                 }`}
               >
                 Inversion
               </button>
               <button
                 type="button"
+                onClick={() => setTipo('gasto_general')}
+                className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
+                  tipo === 'gasto_general'
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-warm-100 text-warm-700'
+                }`}
+              >
+                Gasto general
+              </button>
+              <button
+                type="button"
                 onClick={() => setTipo('gasto_personal')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-lg px-2 py-2 text-xs font-medium transition-colors ${
                   tipo === 'gasto_personal'
                     ? 'bg-purple-500 text-white'
-                    : 'bg-gray-100 text-gray-700'
+                    : 'bg-warm-100 text-warm-700'
                 }`}
               >
                 Gasto personal
@@ -228,7 +258,7 @@ export function InversionesForm({
             />
 
             <Button onClick={handleAgregar} loading={loading}>
-              Agregar {tipo === 'inversion' ? 'inversion' : 'gasto personal'}
+              Agregar {tipoLabel[tipo]}
             </Button>
           </div>
         </div>

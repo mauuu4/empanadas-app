@@ -1,111 +1,54 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDateWithTime, formatDateShort } from '@/lib/utils'
-import { Card, CardContent, CardTitle } from '@/components/ui'
+import { Card, CardContent, CardTitle } from '@/components/ui/Card'
+import { ActionCard } from '@/components/ui/ActionCard'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { ensureJornadaHoy } from '@/lib/jornada-utils'
+import { calcularResumenSemana } from '@/lib/queries'
+import { getUser, getVendedor } from '@/lib/auth'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-function ActionCard({
-  href,
-  icon,
-  iconBg,
-  title,
-  subtitle,
-}: {
-  href: string
-  icon: React.ReactNode
-  iconBg: string
-  title: string
-  subtitle: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-card border border-gray-100/80 transition-all duration-150 hover:shadow-card-hover active:scale-[0.98]"
-    >
-      <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-gray-900">{title}</p>
-        <p className="truncate text-xs text-gray-400">{subtitle}</p>
-      </div>
-      <svg
-        className="h-4 w-4 shrink-0 text-gray-300"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-      >
-        <path
-          fillRule="evenodd"
-          d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </Link>
-  )
-}
-
 export default async function DashboardPage() {
-  const supabase = await createClient()
+  const [user, vendedor] = await Promise.all([getUser(), getVendedor()])
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) redirect('/login')
-
-  const vendedorId = user.user_metadata.vendedor_id as string
-
-  const { data: vendedor } = await supabase
-    .from('vendedores')
-    .select('*')
-    .eq('id', vendedorId)
-    .single()
-
-  if (!vendedor) redirect('/login')
+  if (!user || !vendedor) redirect('/login')
 
   const isAdmin = vendedor.rol === 'admin'
 
-  // Auto-create jornada if needed (only for admin)
-  let jornada = null
-  let semana = null
+  const adminClient = await createAdminClient()
+  const result = await ensureJornadaHoy(adminClient)
+  const jornada = result.jornada
+  const semana = result.semana
 
-  if (isAdmin) {
-    const result = await ensureJornadaHoy(supabase)
-    jornada = result.jornada
-    semana = result.semana
-  } else {
-    // Non-admin: just look for today's jornada
-    const { data } = await supabase
-      .from('jornadas')
-      .select('*')
-      .eq('fecha', new Date().toLocaleDateString('en-CA', { timeZone: 'America/Guayaquil' }))
-      .single()
-    jornada = data
+  // En paralelo: saldo real de la semana + progreso del vendedor (sus asignaciones de hoy)
+  const [resumenSemana, { data: asigsVendedor }] = await Promise.all([
+    semana
+      ? calcularResumenSemana(adminClient, semana.id, semana.saldo_inicial)
+      : Promise.resolve(null),
+    !isAdmin && jornada
+      ? adminClient
+          .from('asignaciones')
+          .select('cantidad_sobrante')
+          .eq('jornada_id', jornada.id)
+          .eq('vendedor_id', vendedor.id)
+      : Promise.resolve({ data: [] as { cantidad_sobrante: number | null }[] }),
+  ])
 
-    // Get semana
-    const { data: semanaData } = await supabase
-      .from('semanas')
-      .select('*')
-      .eq('estado', 'abierta')
-      .order('fecha_inicio', { ascending: false })
-      .limit(1)
-      .single()
-    semana = semanaData
-  }
+  // Progreso del dia (solo vendedores): asignar -> cerrar venta
+  const hasAsignaciones = (asigsVendedor?.length ?? 0) > 0
+  const hasCerradoVenta =
+    hasAsignaciones && (asigsVendedor ?? []).every((a) => a.cantidad_sobrante !== null)
 
   return (
     <div className="flex flex-col gap-5 stagger-children">
-      {/* Saludo */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-          Hola, {vendedor.nombre.split(' ')[0]}
+        <h1 className="font-display text-[1.9rem] font-semibold leading-tight tracking-tight text-warm-900">
+          Hola, <span className="italic text-amber-700">{vendedor.nombre.split(' ')[0]}</span>
         </h1>
-        <p className="mt-0.5 text-sm capitalize text-gray-400">
+        <p className="mt-1 text-sm capitalize text-warm-400">
           {formatDateWithTime(new Date())}
         </p>
       </div>
@@ -114,15 +57,25 @@ export default async function DashboardPage() {
       <Card>
         <div className="flex items-center justify-between">
           <CardTitle>Jornada de hoy</CardTitle>
-          {jornada && jornada.estado === 'abierta' && (
+          {jornada?.estado === 'abierta' && (
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200/60">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              Abierta
+              En curso
             </span>
           )}
         </div>
         <CardContent className="mt-3">
-          {jornada && jornada.estado === 'abierta' ? (
+          {jornada?.estado === 'abierta' ? (
+            <>
+            {!isAdmin && (
+              <div className="mb-3 flex items-center gap-2 rounded-2xl bg-warm-50 px-4 py-3 ring-1 ring-inset ring-warm-200/60">
+                <ProgressDot done={hasAsignaciones} label="Asignar" />
+                <ProgressLine />
+                <ProgressDot done={false} label="Movimientos" optional />
+                <ProgressLine />
+                <ProgressDot done={hasCerradoVenta} label="Cerrar venta" />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <ActionCard
                 href="/jornada/asignar"
@@ -169,91 +122,77 @@ export default async function DashboardPage() {
                 subtitle="Vista del dia"
               />
             </div>
-          ) : jornada && jornada.estado === 'cerrada' ? (
-            <div className="py-6 text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+            </>
+          ) : jornada?.estado === 'cerrada' ? (
+            <EmptyState
+              icon={
                 <svg className="h-7 w-7 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
                 </svg>
-              </div>
-              <p className="text-sm font-semibold text-emerald-700">
-                Jornada cerrada
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                Manana se creara una nueva automaticamente.
-              </p>
-              <Link
-                href="/jornada/resumen"
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-200 active:scale-[0.98]"
-              >
-                Ver resumen
-                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                </svg>
-              </Link>
-            </div>
+              }
+              iconBg="bg-emerald-50"
+              title="Jornada completada"
+              description="El dia de hoy ya esta cerrado."
+              action={{ href: '/jornada/resumen', label: 'Ver resumen del dia', direction: 'forward' }}
+              className="py-5"
+            />
           ) : (
-            <div className="py-6 text-center">
-              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-                <svg className="h-7 w-7 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <p className="text-sm text-gray-500">
-                No hay jornada creada para hoy.
-              </p>
-              <p className="mt-1 text-xs text-gray-400">
-                El administrador debe iniciar sesion para crear la jornada.
-              </p>
-            </div>
+            <EmptyState
+              title="Sin jornada activa"
+              description="El administrador debe ingresar para iniciar la jornada."
+              className="py-5"
+            />
           )}
         </CardContent>
       </Card>
 
-      {/* Saldo semanal */}
-      {semana && (
-        <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-5 shadow-elevated">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-400">Semana actual</p>
-              <p className="mt-0.5 text-xs text-gray-500">
-                {formatDateShort(semana.fecha_inicio)} - {formatDateShort(semana.fecha_fin)}
-              </p>
-            </div>
-            {semana.saldo_inicial > 0 && (
-              <span className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-gray-400">
-                Inicio: {formatCurrency(semana.saldo_inicial)}
-              </span>
-            )}
-          </div>
-          <div className="mt-4 flex items-end justify-between">
-            <div>
-              <p className="text-xs text-gray-500">Saldo</p>
-              <p className="text-2xl font-bold text-white tracking-tight">
-                {formatCurrency(semana.saldo_inicial)}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link
-                href="/semana"
-                className="rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition-all hover:bg-white/20 active:scale-95"
-              >
-                Ver detalle
-              </Link>
-              {isAdmin && (
-                <Link
-                  href="/semana/inversiones"
-                  className="rounded-xl bg-orange-500/90 px-3.5 py-2 text-xs font-semibold text-white transition-all hover:bg-orange-500 active:scale-95"
-                >
-                  Inversiones
-                </Link>
+      {/* Saldo semanal — se muestra el saldo REAL calculado, no el inicial */}
+      {semana && resumenSemana && (
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-dark p-5 shadow-elevated">
+          <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
+          <div className="relative">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-medium text-warm-400">Semana actual</p>
+                <p className="mt-0.5 text-xs text-warm-500">
+                  {formatDateShort(semana.fecha_inicio)} — {formatDateShort(semana.fecha_fin)}
+                </p>
+              </div>
+              {semana.saldo_inicial > 0 && (
+                <span className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-warm-400">
+                  Inicio: {formatCurrency(semana.saldo_inicial)}
+                </span>
               )}
+            </div>
+            <div className="mt-4 flex items-end justify-between">
+              <div>
+                <p className="text-xs text-warm-500">Saldo acumulado</p>
+                <p className={`font-display text-2xl font-bold tracking-tight ${resumenSemana.saldoActual >= 0 ? 'text-white' : 'text-red-300'}`}>
+                  {formatCurrency(resumenSemana.saldoActual)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Link
+                  href="/semana"
+                  className="rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-white/20 active:scale-95"
+                >
+                  Ver detalle
+                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/semana/inversiones"
+                    className="rounded-xl bg-amber-600/90 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-amber-600 active:scale-95"
+                  >
+                    Inversiones
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Accesos admin */}
+      {/* Accesos rápidos de administración */}
       {isAdmin && (
         <Card>
           <CardTitle>Administracion</CardTitle>
@@ -286,4 +225,44 @@ export default async function DashboardPage() {
       )}
     </div>
   )
+}
+
+function ProgressDot({
+  done,
+  label,
+  optional = false,
+}: {
+  done: boolean
+  label: string
+  optional?: boolean
+}) {
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div
+        className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
+          done ? 'border-emerald-500 bg-emerald-500' : 'border-warm-300 bg-white'
+        }`}
+      >
+        {done && (
+          <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+          </svg>
+        )}
+      </div>
+      <span
+        className={`text-[10px] font-medium leading-none ${
+          done ? 'text-emerald-600' : optional ? 'text-warm-400' : 'text-warm-500'
+        }`}
+      >
+        {label}
+        {optional && (
+          <span className="block text-center text-[9px] text-warm-300">opcional</span>
+        )}
+      </span>
+    </div>
+  )
+}
+
+function ProgressLine() {
+  return <div className="mb-4 h-px flex-1 bg-warm-200" />
 }

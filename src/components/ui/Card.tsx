@@ -9,7 +9,7 @@ function Card({ className, children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 transition-shadow duration-200',
+        'rounded-2xl bg-[#fffcf8] p-4 shadow-card border border-warm-200/60 transition-shadow duration-200',
         className,
       )}
       {...props}
@@ -34,7 +34,7 @@ function CardTitle({
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h3
-      className={cn('text-[15px] font-semibold text-gray-900 tracking-tight', className)}
+      className={cn('font-display text-[15px] font-semibold text-warm-900 tracking-tight', className)}
       {...props}
     >
       {children}

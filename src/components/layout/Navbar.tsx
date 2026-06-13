@@ -13,15 +13,6 @@ function IconHome({ className }: { className?: string }) {
   )
 }
 
-function IconClipboard({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <rect x="5" y="3" width="14" height="18" rx="2" />
-      <path d="M9 7h6M9 11h6M9 15h4" />
-    </svg>
-  )
-}
-
 function IconChart({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -42,7 +33,6 @@ function IconCalendar({ className }: { className?: string }) {
 
 const navItems = [
   { href: '/dashboard', label: 'Inicio', Icon: IconHome },
-  { href: '/jornada', label: 'Jornada', Icon: IconClipboard },
   { href: '/semana', label: 'Semana', Icon: IconChart },
   { href: '/historial', label: 'Historial', Icon: IconCalendar },
 ]
@@ -51,7 +41,7 @@ export function Navbar() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-gray-200/60 safe-area-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-warm-200/50 safe-area-bottom">
       <div className="mx-auto flex max-w-lg items-center justify-around px-2">
         {navItems.map((item) => {
           const isActive =
@@ -64,17 +54,17 @@ export function Navbar() {
               className={cn(
                 'relative flex flex-1 flex-col items-center gap-1 px-2 py-2.5 transition-all duration-200',
                 isActive
-                  ? 'text-orange-600'
-                  : 'text-gray-400 hover:text-gray-600 active:text-gray-700',
+                  ? 'text-amber-700'
+                  : 'text-warm-400 hover:text-warm-600 active:text-warm-700',
               )}
             >
               {isActive && (
-                <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-orange-500" />
+                <span className="absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2 rounded-full bg-gradient-to-r from-amber-500 to-amber-600" />
               )}
               <item.Icon className={cn('h-5.5 w-5.5 transition-all duration-200', isActive && 'stroke-[2.2]')} />
               <span className={cn(
                 'text-[10px] leading-none transition-all duration-200',
-                isActive ? 'font-semibold' : 'font-medium',
+                isActive ? 'font-bold' : 'font-medium',
               )}>
                 {item.label}
               </span>

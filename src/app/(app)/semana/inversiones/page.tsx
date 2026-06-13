@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatDateShort } from '@/lib/utils'
-import { Card, CardContent, CardTitle } from '@/components/ui'
+import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { InversionesForm } from '@/components/semana/InversionesForm'
 import Link from 'next/link'
 
@@ -18,26 +18,27 @@ export default async function InversionesPage() {
 
   const vendedorId = user.user_metadata.vendedor_id as string
 
-  const { data: vendedor } = await supabase
-    .from('vendedores')
-    .select('rol')
-    .eq('id', vendedorId)
-    .single()
+  // Fetch vendedor and semana in parallel (async-parallel)
+  const [{ data: vendedor }, { data: semana }] = await Promise.all([
+    supabase
+      .from('vendedores')
+      .select('rol')
+      .eq('id', vendedorId)
+      .single(),
+    supabase
+      .from('semanas')
+      .select('*')
+      .order('fecha_inicio', { ascending: false })
+      .limit(1)
+      .single(),
+  ])
 
   const isAdmin = vendedor?.rol === 'admin'
-
-  // Buscar semana actual (abierta)
-  const { data: semana } = await supabase
-    .from('semanas')
-    .select('*')
-    .order('fecha_inicio', { ascending: false })
-    .limit(1)
-    .single()
 
   if (!semana) {
     return (
       <div className="flex flex-col items-center gap-4 py-8">
-        <p className="text-gray-500">No hay semana activa.</p>
+        <p className="text-warm-500">No hay semana activa.</p>
         <Link
           href="/dashboard"
           className="text-sm font-medium text-orange-600 hover:text-orange-700"
@@ -61,10 +62,10 @@ export default async function InversionesPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-warm-900">
             Inversiones y gastos
           </h1>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-warm-500">
             Semana {formatDateShort(semana.fecha_inicio)} al{' '}
             {formatDateShort(semana.fecha_fin)}
           </p>
@@ -91,7 +92,7 @@ export default async function InversionesPage() {
               fecha: i.fecha,
               descripcion: i.descripcion,
               monto: i.monto,
-              tipo: i.tipo as 'inversion' | 'gasto_personal',
+              tipo: i.tipo as 'inversion' | 'gasto_personal' | 'gasto_general',
             }))}
             isAdmin={isAdmin}
             isCerrada={isCerrada}

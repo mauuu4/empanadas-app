@@ -4,7 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Producto } from '@/types'
-import { Button, Input, useToast, useConfirm } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { useToast } from '@/components/ui/Toast'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
 import { formatCurrency } from '@/lib/utils'
 
 interface AsignacionConProducto {
@@ -116,23 +120,27 @@ export function CerrarVentaForm({
       }
     }
 
-    for (const asig of asignaciones) {
-      const sobrante = parseInt(sobrantes[asig.id] || '0', 10)
-      const { error: updateError } = await supabase
-        .from('asignaciones')
-        .update({ cantidad_sobrante: isNaN(sobrante) ? 0 : sobrante })
-        .eq('id', asig.id)
+    // Update all asignaciones in parallel (async-parallel)
+    const updateResults = await Promise.all(
+      asignaciones.map((asig) => {
+        const sobrante = parseInt(sobrantes[asig.id] || '0', 10)
+        return supabase
+          .from('asignaciones')
+          .update({ cantidad_sobrante: isNaN(sobrante) ? 0 : sobrante })
+          .eq('id', asig.id)
+      }),
+    )
 
-      if (updateError) {
-        setError(updateError.message)
-        setLoading(false)
-        return
-      }
+    const failedUpdate = updateResults.find((r) => r.error)
+    if (failedUpdate?.error) {
+      setError(failedUpdate.error.message)
+      setLoading(false)
+      return
     }
 
     setLoading(false)
-    toast('Venta cerrada correctamente')
-    router.push('/dashboard')
+    toast('Venta cerrada exitosamente')
+    router.push('/jornada/resumen' + window.location.search)
     router.refresh()
   }
 
@@ -151,18 +159,18 @@ export function CerrarVentaForm({
             asig.cantidad_inicial - (isNaN(sobrante) ? 0 : sobrante)
 
           return (
-            <div key={asig.id} className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80">
+            <div key={asig.id} className="rounded-2xl bg-[#fffcf8] p-4 shadow-card border border-warm-200/60">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                  <h4 className="text-sm font-semibold text-warm-900">
                     {asig.producto.nombre}
                   </h4>
-                  <p className="mt-0.5 text-xs text-gray-400">
+                  <p className="mt-0.5 text-xs text-warm-400">
                     Lleva: {asig.cantidad_inicial} bandejas
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <label className="mb-1.5 block text-[11px] font-medium text-gray-400">
+                  <label className="mb-1.5 block text-[11px] font-medium text-warm-400">
                     Sobrante
                   </label>
                   <Input
@@ -178,8 +186,8 @@ export function CerrarVentaForm({
                 </div>
               </div>
               {sobrantes[asig.id] !== '' && (
-                <div className="mt-2.5 flex justify-between rounded-lg bg-gray-50 px-3 py-1.5 text-sm">
-                  <span className="text-gray-500">
+                <div className="mt-2.5 flex justify-between rounded-lg bg-warm-50 px-3 py-1.5 text-sm">
+                  <span className="text-warm-500">
                     Vendido: {vendido < 0 ? 0 : vendido}
                   </span>
                   <span className="font-semibold text-orange-600">
@@ -197,15 +205,15 @@ export function CerrarVentaForm({
       {/* Summary */}
       {allFilled && (
         <div className="rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 p-4 ring-1 ring-inset ring-orange-200/60 animate-slide-up">
-          <h3 className="text-sm font-semibold text-gray-900">Resumen de venta</h3>
+          <h3 className="text-sm font-semibold text-warm-900">Resumen de venta</h3>
 
           <div className="mt-3 flex flex-col gap-1.5 text-sm">
             {detalles.map((d) => (
               <div key={d.nombre} className="flex justify-between">
-                <span className="text-gray-500">
+                <span className="text-warm-500">
                   {d.nombre} ({d.vendido} vendidas)
                 </span>
-                <span className="font-medium text-gray-700">{formatCurrency(d.monto)}</span>
+                <span className="font-medium text-warm-700">{formatCurrency(d.monto)}</span>
               </div>
             ))}
           </div>
@@ -213,7 +221,7 @@ export function CerrarVentaForm({
           <div className="mt-3 border-t border-orange-200/60 pt-3">
             <div className="flex flex-col gap-1.5 text-sm">
               <div className="flex justify-between font-medium">
-                <span className="text-gray-700">Venta bruta</span>
+                <span className="text-warm-700">Venta bruta</span>
                 <span>{formatCurrency(ventaBruta)}</span>
               </div>
               {totalGastos > 0 && (
@@ -235,7 +243,7 @@ export function CerrarVentaForm({
                 </div>
               )}
               <div className="mt-1.5 flex justify-between rounded-xl bg-white/70 px-3 py-2 text-base font-bold">
-                <span className="text-gray-900">Efectivo a entregar</span>
+                <span className="text-warm-900">Efectivo a entregar</span>
                 <span className="text-orange-600">
                   {formatCurrency(efectivo)}
                 </span>
@@ -245,14 +253,7 @@ export function CerrarVentaForm({
         </div>
       )}
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600 ring-1 ring-inset ring-red-200/60">
-          <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-          </svg>
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       <Button type="submit" loading={loading} size="lg" disabled={!allFilled}>
         Confirmar cierre

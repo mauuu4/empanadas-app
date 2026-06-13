@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDateShort } from '@/lib/utils'
-import { Card, CardContent, CardTitle, Badge } from '@/components/ui'
+import { Card, CardContent, CardTitle } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { MesFilter } from '@/components/historial/MesFilter'
 import { calcularResumenSemana } from '@/lib/queries'
+import { getUser } from '@/lib/auth'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -11,36 +14,23 @@ export const dynamic = 'force-dynamic'
 export default async function HistorialPage() {
   const supabase = await createClient()
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const [user, { data: semanas }] = await Promise.all([
+    getUser(),
+    supabase
+      .from('semanas')
+      .select('*')
+      .order('fecha_inicio', { ascending: false }),
+  ])
 
   if (!user) redirect('/login')
 
-  const { data: semanas } = await supabase
-    .from('semanas')
-    .select('*')
-    .order('fecha_inicio', { ascending: false })
-
   if (!semanas || semanas.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-4 py-12">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-          <svg className="h-7 w-7 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z" clipRule="evenodd" />
-          </svg>
-        </div>
-        <p className="font-medium text-gray-500">No hay semanas registradas.</p>
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
-          </svg>
-          Volver al inicio
-        </Link>
-      </div>
+      <EmptyState
+        title="No hay semanas registradas."
+        action={{ href: '/dashboard', label: 'Volver al inicio' }}
+        className="py-16"
+      />
     )
   }
 
@@ -53,19 +43,22 @@ export default async function HistorialPage() {
     saldoFinal: number
   }
 
-  const semanasCards: SemanaCard[] = []
+  const semanaIds = semanas.map((s) => s.id)
+  const [resumenResults, { data: allJornadas }] = await Promise.all([
+    Promise.all(
+      semanas.map((s) => calcularResumenSemana(supabase, s.id, s.saldo_inicial)),
+    ),
+    supabase.from('jornadas').select('semana_id').in('semana_id', semanaIds),
+  ])
 
-  for (const s of semanas) {
-    const resumen = await calcularResumenSemana(supabase, s.id, s.saldo_inicial)
-    semanasCards.push({
-      id: s.id,
-      fechaInicio: s.fecha_inicio,
-      fechaFin: s.fecha_fin,
-      estado: s.estado,
-      ventaTotal: resumen.totales.ventaTotal,
-      saldoFinal: resumen.saldoActual,
-    })
-  }
+  const semanasCards: SemanaCard[] = semanas.map((s, i) => ({
+    id: s.id,
+    fechaInicio: s.fecha_inicio,
+    fechaFin: s.fecha_fin,
+    estado: s.estado,
+    ventaTotal: resumenResults[i].totales.ventaTotal,
+    saldoFinal: resumenResults[i].saldoActual,
+  }))
 
   const years = [
     ...new Set(
@@ -90,33 +83,25 @@ export default async function HistorialPage() {
     }
   }
 
-  let totalVentaGlobal = 0
-  let totalDias = 0
-  for (const s of semanas) {
-    const { data: jornadas } = await supabase
-      .from('jornadas')
-      .select('id')
-      .eq('semana_id', s.id)
-    totalDias += (jornadas ?? []).length
-  }
-  totalVentaGlobal = semanasCards.reduce((sum, s) => sum + s.ventaTotal, 0)
+  const totalDias = (allJornadas ?? []).length
+  const totalVentaGlobal = semanasCards.reduce((sum, s) => sum + s.ventaTotal, 0)
   const promedioVentaDiaria = totalDias > 0 ? totalVentaGlobal / totalDias : 0
 
   return (
     <div className="flex flex-col gap-5 stagger-children">
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900">Historial</h1>
+      <h1 className="font-display text-[1.7rem] font-semibold leading-tight tracking-tight text-warm-900">Historial</h1>
 
       {/* Estadisticas rapidas */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-4 shadow-elevated">
-          <p className="text-[11px] font-medium text-gray-400">Promedio diario</p>
+        <div className="rounded-2xl bg-gradient-dark p-4 shadow-elevated">
+          <p className="text-[11px] font-medium text-warm-400">Promedio diario</p>
           <p className="mt-1 text-xl font-bold tracking-tight text-emerald-400">
             {formatCurrency(promedioVentaDiaria)}
           </p>
-          <p className="mt-1.5 text-[11px] text-gray-500">{totalDias} jornadas</p>
+          <p className="mt-1.5 text-[11px] text-warm-500">{totalDias} jornadas</p>
         </div>
-        <div className="rounded-2xl bg-gradient-to-br from-gray-900 to-gray-800 p-4 shadow-elevated">
-          <p className="text-[11px] font-medium text-gray-400">Tendencia</p>
+        <div className="rounded-2xl bg-gradient-dark p-4 shadow-elevated">
+          <p className="text-[11px] font-medium text-warm-400">Tendencia</p>
           {tendencia === 'sube' && (
             <div className="mt-1 flex items-center gap-1.5">
               <svg className="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
@@ -136,8 +121,8 @@ export default async function HistorialPage() {
           {tendencia === 'igual' && (
             <p className="mt-1 text-xl font-bold text-amber-400">Estable</p>
           )}
-          {!tendencia && <p className="mt-1 text-xl font-bold text-gray-500">--</p>}
-          <p className="mt-1.5 text-[11px] text-gray-500">vs semana anterior</p>
+          {!tendencia && <p className="mt-1 text-xl font-bold text-warm-500">--</p>}
+          <p className="mt-1.5 text-[11px] text-warm-500">vs semana anterior</p>
         </div>
       </div>
 
@@ -162,27 +147,22 @@ export default async function HistorialPage() {
               <Link
                 key={s.id}
                 href={`/historial/semana/${s.id}`}
-                className="flex items-center justify-between rounded-xl bg-gray-50/80 px-3.5 py-3 transition-all duration-150 hover:bg-gray-100 active:scale-[0.99]"
+                className="flex items-center justify-between rounded-xl bg-warm-50/80 px-3.5 py-3 transition-all duration-150 hover:bg-warm-100/80 active:scale-[0.99]"
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-semibold text-gray-800">
-                    {formatDateShort(s.fechaInicio)} -{' '}
-                    {formatDateShort(s.fechaFin)}
+                  <span className="text-sm font-semibold text-warm-800">
+                    {formatDateShort(s.fechaInicio)} — {formatDateShort(s.fechaFin)}
                   </span>
-                  <span className="text-[11px] text-gray-400">
+                  <span className="text-[11px] text-warm-400">
                     Venta: {formatCurrency(s.ventaTotal)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <span
-                    className={`text-sm font-bold ${s.saldoFinal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}
-                  >
+                  <span className={`text-sm font-bold ${s.saldoFinal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {formatCurrency(s.saldoFinal)}
                   </span>
-                  <Badge
-                    variant={s.estado === 'cerrada' ? 'default' : 'success'}
-                  >
-                    {s.estado === 'cerrada' ? 'Cerrada' : 'Abierta'}
+                  <Badge variant={s.estado === 'cerrada' ? 'default' : 'success'}>
+                    {s.estado === 'cerrada' ? 'Cerrada' : 'En curso'}
                   </Badge>
                 </div>
               </Link>

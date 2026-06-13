@@ -35,3 +35,26 @@ export const DIAS_SEMANA = [
   'miercoles',
   'jueves',
 ] as const
+
+/**
+ * Categorias de gasto (solo aplican a gastos, no a transferencias/descuentos).
+ * El emoji se usa como icono ligero en selects y chips.
+ */
+export const GASTO_CATEGORIAS = [
+  { value: 'comida', label: 'Comida', emoji: '🍽️' },
+  { value: 'transporte', label: 'Transporte', emoji: '⛽' },
+  { value: 'insumos', label: 'Insumos', emoji: '🧺' },
+  { value: 'casa', label: 'Casa', emoji: '🏠' },
+  { value: 'personal', label: 'Personal', emoji: '👤' },
+  { value: 'otro', label: 'Otro', emoji: '📌' },
+] as const
+
+export type GastoCategoria = (typeof GASTO_CATEGORIAS)[number]['value']
+
+/** Mapa value -> { label, emoji } para lookups O(1) en listas. */
+export const GASTO_CATEGORIA_MAP: Record<
+  GastoCategoria,
+  { label: string; emoji: string }
+> = Object.fromEntries(
+  GASTO_CATEGORIAS.map((c) => [c.value, { label: c.label, emoji: c.emoji }]),
+) as Record<GastoCategoria, { label: string; emoji: string }>

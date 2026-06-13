@@ -4,7 +4,10 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Producto, Asignacion } from '@/types'
-import { Button, Input, useToast } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { useToast } from '@/components/ui/Toast'
+import { ErrorAlert } from '@/components/ui/ErrorAlert'
 import { formatCurrency } from '@/lib/utils'
 
 interface AsignarProductosFormProps {
@@ -12,6 +15,7 @@ interface AsignarProductosFormProps {
   asignaciones: Asignacion[]
   jornadaId: string
   vendedorId: string
+  isAdmin?: boolean
 }
 
 export function AsignarProductosForm({
@@ -19,6 +23,7 @@ export function AsignarProductosForm({
   asignaciones,
   jornadaId,
   vendedorId,
+  isAdmin = false,
 }: AsignarProductosFormProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -73,13 +78,15 @@ export function AsignarProductosForm({
       return
     }
 
-    // Verificar que el usuario autenticado coincide con el vendedor
-    const { data: { user } } = await supabase.auth.getUser()
-    const authVendedorId = user?.user_metadata?.vendedor_id as string | undefined
-    if (authVendedorId && authVendedorId !== vendedorId) {
-      setError('Sesion invalida. Por favor cierra sesion e ingresa de nuevo.')
-      setLoading(false)
-      return
+    // Skip auth check for admins (server already verified admin status via the page component)
+    if (!isAdmin) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const authVendedorId = user?.user_metadata?.vendedor_id as string | undefined
+      if (authVendedorId && authVendedorId !== vendedorId) {
+        setError('Sesion invalida. Por favor cierra sesion e ingresa de nuevo.')
+        setLoading(false)
+        return
+      }
     }
 
     const { error: deleteError } = await supabase
@@ -106,7 +113,10 @@ export function AsignarProductosForm({
 
     setLoading(false)
     toast('Asignacion guardada')
-    router.push('/dashboard')
+    // Con params (admin gestionando a un vendedor) volvemos al hub por-vendedor;
+    // un vendedor normal vuelve a su inicio (dashboard).
+    const search = window.location.search
+    router.push(search ? '/jornada' + search : '/dashboard')
     router.refresh()
   }
 
@@ -123,14 +133,14 @@ export function AsignarProductosForm({
           return (
             <div
               key={producto.id}
-              className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 transition-shadow duration-150 hover:shadow-card-hover"
+              className="rounded-2xl bg-[#fffcf8] p-4 shadow-card border border-warm-200/60 transition-shadow duration-150 hover:shadow-card-hover"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                  <h4 className="text-sm font-semibold text-warm-900">
                     {producto.nombre}
                   </h4>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-warm-400">
                     {producto.unidades_por_bandeja} uds &middot;{' '}
                     {formatCurrency(producto.precio)}/bandeja
                   </p>
@@ -149,7 +159,7 @@ export function AsignarProductosForm({
               </div>
               {subtotal > 0 && (
                 <div className="mt-2 flex items-center justify-between rounded-lg bg-orange-50/70 px-3 py-1.5">
-                  <span className="text-xs text-gray-500">{cantidad} bandejas</span>
+                  <span className="text-xs text-warm-500">{cantidad} bandejas</span>
                   <span className="text-sm font-semibold text-orange-600">
                     {formatCurrency(subtotal)}
                   </span>
@@ -170,14 +180,7 @@ export function AsignarProductosForm({
         </div>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2.5 text-sm text-red-600 ring-1 ring-inset ring-red-200/60">
-          <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-          </svg>
-          {error}
-        </div>
-      )}
+      <ErrorAlert message={error} />
 
       <Button type="submit" loading={loading} size="lg">
         Guardar asignacion

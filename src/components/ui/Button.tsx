@@ -21,23 +21,23 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]'
+      'inline-flex items-center justify-center font-semibold rounded-2xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf6f1] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.97]'
 
     const variants = {
       primary:
-        'bg-gradient-to-b from-orange-500 to-orange-600 text-white shadow-sm hover:from-orange-600 hover:to-orange-700 focus-visible:ring-orange-500 active:shadow-none',
+        'bg-gradient-to-b from-amber-600 to-amber-700 text-white shadow-md shadow-amber-700/20 hover:from-amber-700 hover:to-amber-800 hover:shadow-lg hover:shadow-amber-700/25 focus-visible:ring-amber-600',
       secondary:
-        'bg-gray-50 text-gray-900 border border-gray-200 hover:bg-gray-100 hover:border-gray-300 focus-visible:ring-gray-500',
+        'bg-warm-100 text-warm-800 border border-warm-200 hover:bg-warm-200 hover:border-warm-300 focus-visible:ring-warm-500',
       danger:
-        'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm hover:from-red-600 hover:to-red-700 focus-visible:ring-red-500',
+        'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-md shadow-red-600/20 hover:from-red-600 hover:to-red-700 focus-visible:ring-red-500',
       ghost:
-        'text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-500',
+        'text-warm-600 hover:bg-warm-100 hover:text-warm-800 focus-visible:ring-warm-500',
     }
 
     const sizes = {
-      sm: 'px-3 py-1.5 text-sm',
+      sm: 'px-3 py-1.5 text-sm rounded-xl',
       md: 'px-4 py-2.5 text-sm',
-      lg: 'px-6 py-3 text-base',
+      lg: 'px-6 py-3.5 text-base',
     }
 
     return (

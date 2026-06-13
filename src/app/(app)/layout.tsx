@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getVendedor } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
 import { Navbar } from '@/components/layout/Navbar'
 
@@ -10,29 +10,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  // Obtener datos del vendedor
-  const { data: vendedor } = await supabase
-    .from('vendedores')
-    .select('*')
-    .eq('id', user.user_metadata.vendedor_id as string)
-    .single()
+  const vendedor = await getVendedor()
 
   if (!vendedor) {
     redirect('/login')
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb]">
+    <div className="min-h-screen bg-app-shell">
       <Header vendedor={vendedor} />
       <main className="mx-auto max-w-lg px-4 pb-24 pt-5">{children}</main>
       <Navbar />

@@ -93,14 +93,14 @@ export function PinInput({
           onKeyDown={(e) => handleKeyDown(index, e)}
           onPaste={index === 0 ? handlePaste : undefined}
           className={cn(
-            'h-14 w-14 rounded-2xl border-2 bg-gray-50/50 text-center text-2xl font-bold transition-all duration-150',
-            'focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10',
+            'h-14 w-14 rounded-2xl border-2 bg-warm-50/60 text-center text-2xl font-bold text-warm-900 transition-all duration-200',
+            'focus:border-amber-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/15',
             'disabled:cursor-not-allowed disabled:opacity-50',
             error
               ? 'border-red-400 bg-red-50/50'
               : value
-                ? 'border-orange-400 bg-orange-50/50'
-                : 'border-gray-200',
+                ? 'border-amber-400 bg-amber-50/50'
+                : 'border-warm-200',
           )}
           autoComplete="off"
         />

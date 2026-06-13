@@ -12,7 +12,7 @@ function Badge({
   ...props
 }: BadgeProps) {
   const variants = {
-    default: 'bg-gray-100 text-gray-600 ring-gray-200/60',
+    default: 'bg-warm-100 text-warm-600 ring-warm-200/60',
     success: 'bg-emerald-50 text-emerald-700 ring-emerald-200/60',
     warning: 'bg-amber-50 text-amber-700 ring-amber-200/60',
     danger: 'bg-red-50 text-red-700 ring-red-200/60',

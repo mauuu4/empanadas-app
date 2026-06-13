@@ -1,16 +1,21 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { DM_Sans, Fraunces } from 'next/font/google'
 import { Providers } from '@/components/Providers'
 import './globals.css'
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const dmSans = DM_Sans({
+  variable: '--font-dm-sans',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
 })
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+// Fraunces: serif "old-style" cálida y con carácter — encaja con la identidad
+// artesanal de mercado/panadería. Se usa solo para títulos y números grandes.
+const fraunces = Fraunces({
+  variable: '--font-fraunces',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '900'],
+  style: ['normal', 'italic'],
 })
 
 export const metadata: Metadata = {
@@ -64,7 +69,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${dmSans.variable} ${fraunces.variable} antialiased`}
       >
         <Providers>{children}</Providers>
         <script

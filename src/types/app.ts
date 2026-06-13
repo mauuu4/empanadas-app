@@ -47,4 +47,4 @@ export type SaldoSemanalResult =
 export type Rol = 'admin' | 'vendedor'
 export type EstadoJornada = 'abierta' | 'cerrada'
 export type EstadoSemana = 'abierta' | 'cerrada'
-export type TipoInversion = 'inversion' | 'gasto_personal'
+export type TipoInversion = 'inversion' | 'gasto_personal' | 'gasto_general'

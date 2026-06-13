@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import type { Vendedor, Rol } from '@/types'
-import { Button, Input, useToast } from '@/components/ui'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { useToast } from '@/components/ui/Toast'
 import { PIN_LENGTH } from '@/lib/constants'
 
 interface VendedorFormProps {
@@ -117,8 +119,8 @@ function VendedorForm({ vendedor, onClose }: VendedorFormProps) {
   }
 
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-card border border-gray-100/80">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900">
+    <div className="rounded-2xl bg-white p-4 shadow-card border border-warm-100/80">
+      <h3 className="mb-4 text-lg font-semibold text-warm-900">
         {isEditing ? 'Editar vendedor' : 'Nuevo vendedor'}
       </h3>
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
@@ -144,7 +146,7 @@ function VendedorForm({ vendedor, onClose }: VendedorFormProps) {
         <div>
           <label
             htmlFor="rol"
-            className="mb-1 block text-sm font-medium text-gray-700"
+            className="mb-1 block text-sm font-medium text-warm-700"
           >
             Rol
           </label>
@@ -152,7 +154,7 @@ function VendedorForm({ vendedor, onClose }: VendedorFormProps) {
             id="rol"
             value={rol}
             onChange={(e) => setRol(e.target.value as Rol)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 px-3.5 py-2.5 text-base text-gray-900 transition-all duration-150 hover:border-gray-300 hover:bg-white focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            className="w-full rounded-xl border border-warm-200 bg-warm-50/50 px-3.5 py-2.5 text-base text-warm-900 transition-all duration-150 hover:border-warm-300 hover:bg-white focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
           >
             <option value="vendedor">Vendedor</option>
             <option value="admin">Administrador</option>
@@ -201,7 +203,7 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
 
   return (
     <div
-      className={`rounded-2xl bg-white p-4 shadow-card border border-gray-100/80 ${!vendedor.activo ? 'opacity-60' : ''}`}
+      className={`rounded-2xl bg-white p-4 shadow-card border border-warm-100/80 ${!vendedor.activo ? 'opacity-60' : ''}`}
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -210,7 +212,7 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
               {vendedor.nombre.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h4 className="font-medium text-gray-900">{vendedor.nombre}</h4>
+              <h4 className="font-medium text-warm-900">{vendedor.nombre}</h4>
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -225,7 +227,7 @@ function VendedorRow({ vendedor, onEdit }: VendedorRowProps) {
                   className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                     vendedor.activo
                       ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/60'
-                      : 'bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200/60'
+                      : 'bg-warm-100 text-warm-500 ring-1 ring-inset ring-warm-200/60'
                   }`}
                 >
                   {vendedor.activo ? 'Activo' : 'Inactivo'}
@@ -273,7 +275,7 @@ export function VendedoresList({ vendedores }: VendedoresListProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Vendedores</h1>
+        <h1 className="font-display text-[1.7rem] font-semibold leading-tight tracking-tight text-warm-900">Vendedores</h1>
         {!showForm && (
           <Button size="sm" onClick={() => setShowForm(true)}>
             Agregar
@@ -286,7 +288,7 @@ export function VendedoresList({ vendedores }: VendedoresListProps) {
       )}
 
       {vendedores.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">
+        <p className="py-8 text-center text-sm text-warm-500">
           No hay vendedores registrados.
         </p>
       ) : (
