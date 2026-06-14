@@ -10,6 +10,9 @@ export type Gasto = Database['public']['Tables']['gastos']['Row']
 export type Transferencia =
   Database['public']['Tables']['transferencias']['Row']
 export type Descuento = Database['public']['Tables']['descuentos']['Row']
+export type Movimiento = Database['public']['Tables']['movimientos']['Row']
+export type MovimientoInsert =
+  Database['public']['Tables']['movimientos']['Insert']
 export type Paga = Database['public']['Tables']['pagas']['Row']
 export type Inversion = Database['public']['Tables']['inversiones']['Row']
 
@@ -45,6 +48,7 @@ export type SaldoSemanalResult =
 
 // Roles
 export type Rol = 'admin' | 'vendedor'
+export type TipoMovimiento = 'gasto' | 'transferencia' | 'descuento'
 export type EstadoJornada = 'abierta' | 'cerrada'
 export type EstadoSemana = 'abierta' | 'cerrada'
 export type TipoInversion = 'inversion' | 'gasto_personal' | 'gasto_general'

@@ -252,6 +252,54 @@ export interface Database {
           },
         ]
       }
+      movimientos: {
+        Row: {
+          id: string
+          jornada_id: string
+          vendedor_id: string
+          tipo: 'gasto' | 'transferencia' | 'descuento'
+          categoria: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro' | null
+          descripcion: string | null
+          monto: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          jornada_id: string
+          vendedor_id: string
+          tipo: 'gasto' | 'transferencia' | 'descuento'
+          categoria?: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro' | null
+          descripcion?: string | null
+          monto: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          jornada_id?: string
+          vendedor_id?: string
+          tipo?: 'gasto' | 'transferencia' | 'descuento'
+          categoria?: 'comida' | 'transporte' | 'insumos' | 'casa' | 'personal' | 'otro' | null
+          descripcion?: string | null
+          monto?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'movimientos_jornada_id_fkey'
+            columns: ['jornada_id']
+            isOneToOne: false
+            referencedRelation: 'jornadas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'movimientos_vendedor_id_fkey'
+            columns: ['vendedor_id']
+            isOneToOne: false
+            referencedRelation: 'vendedores'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       transferencias: {
         Row: {
           id: string

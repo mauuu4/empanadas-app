@@ -1,12 +1,15 @@
+import { Suspense } from 'react'
 import { createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { formatCurrency, formatDateWithTime, formatDateShort } from '@/lib/utils'
 import { Card, CardContent, CardTitle } from '@/components/ui/Card'
 import { ActionCard } from '@/components/ui/ActionCard'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SkeletonBlock } from '@/components/ui/Skeleton'
 import { ensureJornadaHoy } from '@/lib/jornada-utils'
 import { calcularResumenSemana } from '@/lib/queries'
 import { getUser, getVendedor } from '@/lib/auth'
+import type { Semana } from '@/types'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
@@ -23,21 +26,17 @@ export default async function DashboardPage() {
   const jornada = result.jornada
   const semana = result.semana
 
-  // En paralelo: saldo real de la semana + progreso del vendedor (sus asignaciones de hoy)
-  const [resumenSemana, { data: asigsVendedor }] = await Promise.all([
-    semana
-      ? calcularResumenSemana(adminClient, semana.id, semana.saldo_inicial)
-      : Promise.resolve(null),
+  // Progreso del dia (solo vendedores): asignar -> cerrar venta.
+  // El saldo semanal (más pesado) se carga en streaming, ver <SaldoSemanal />.
+  const { data: asigsVendedor } =
     !isAdmin && jornada
-      ? adminClient
+      ? await adminClient
           .from('asignaciones')
           .select('cantidad_sobrante')
           .eq('jornada_id', jornada.id)
           .eq('vendedor_id', vendedor.id)
-      : Promise.resolve({ data: [] as { cantidad_sobrante: number | null }[] }),
-  ])
+      : { data: [] as { cantidad_sobrante: number | null }[] }
 
-  // Progreso del dia (solo vendedores): asignar -> cerrar venta
   const hasAsignaciones = (asigsVendedor?.length ?? 0) > 0
   const hasCerradoVenta =
     hasAsignaciones && (asigsVendedor ?? []).every((a) => a.cantidad_sobrante !== null)
@@ -146,50 +145,11 @@ export default async function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Saldo semanal — se muestra el saldo REAL calculado, no el inicial */}
-      {semana && resumenSemana && (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-dark p-5 shadow-elevated">
-          <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
-          <div className="relative">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-warm-400">Semana actual</p>
-                <p className="mt-0.5 text-xs text-warm-500">
-                  {formatDateShort(semana.fecha_inicio)} — {formatDateShort(semana.fecha_fin)}
-                </p>
-              </div>
-              {semana.saldo_inicial > 0 && (
-                <span className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-warm-400">
-                  Inicio: {formatCurrency(semana.saldo_inicial)}
-                </span>
-              )}
-            </div>
-            <div className="mt-4 flex items-end justify-between">
-              <div>
-                <p className="text-xs text-warm-500">Saldo acumulado</p>
-                <p className={`font-display text-2xl font-bold tracking-tight ${resumenSemana.saldoActual >= 0 ? 'text-white' : 'text-red-300'}`}>
-                  {formatCurrency(resumenSemana.saldoActual)}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Link
-                  href="/semana"
-                  className="rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-white/20 active:scale-95"
-                >
-                  Ver detalle
-                </Link>
-                {isAdmin && (
-                  <Link
-                    href="/semana/inversiones"
-                    className="rounded-xl bg-amber-600/90 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-amber-600 active:scale-95"
-                  >
-                    Inversiones
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Saldo semanal — se calcula en streaming para no bloquear el render del resto */}
+      {semana && (
+        <Suspense fallback={<SkeletonBlock className="h-[120px] w-full rounded-2xl" />}>
+          <SaldoSemanal semana={semana} isAdmin={isAdmin} />
+        </Suspense>
       )}
 
       {/* Accesos rápidos de administración */}
@@ -223,6 +183,68 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       )}
+    </div>
+  )
+}
+
+// Subcomponente async: calcula el saldo de la semana y se renderiza en streaming
+// (envuelto en <Suspense> en el dashboard) para no bloquear el resto de la página.
+async function SaldoSemanal({
+  semana,
+  isAdmin,
+}: {
+  semana: Semana
+  isAdmin: boolean
+}) {
+  const adminClient = await createAdminClient()
+  const resumen = await calcularResumenSemana(
+    adminClient,
+    semana.id,
+    semana.saldo_inicial,
+  )
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-dark p-5 shadow-elevated">
+      <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
+      <div className="relative">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-medium text-warm-400">Semana actual</p>
+            <p className="mt-0.5 text-xs text-warm-500">
+              {formatDateShort(semana.fecha_inicio)} — {formatDateShort(semana.fecha_fin)}
+            </p>
+          </div>
+          {semana.saldo_inicial > 0 && (
+            <span className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-warm-400">
+              Inicio: {formatCurrency(semana.saldo_inicial)}
+            </span>
+          )}
+        </div>
+        <div className="mt-4 flex items-end justify-between">
+          <div>
+            <p className="text-xs text-warm-500">Saldo acumulado</p>
+            <p className={`font-display text-2xl font-bold tracking-tight ${resumen.saldoActual >= 0 ? 'text-white' : 'text-red-300'}`}>
+              {formatCurrency(resumen.saldoActual)}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link
+              href="/semana"
+              className="rounded-xl bg-white/10 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-white/20 active:scale-95"
+            >
+              Ver detalle
+            </Link>
+            {isAdmin && (
+              <Link
+                href="/semana/inversiones"
+                className="rounded-xl bg-amber-600/90 px-3.5 py-2 text-xs font-semibold text-white transition-all duration-200 hover:bg-amber-600 active:scale-95"
+              >
+                Inversiones
+              </Link>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

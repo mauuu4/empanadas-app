@@ -44,27 +44,12 @@ export default async function MovimientosPage({
     )
   }
 
-  const [{ data: gastos }, { data: transferencias }, { data: descuentos }] =
-    await Promise.all([
-      supabase
-        .from('gastos')
-        .select('*')
-        .eq('jornada_id', jornada.id)
-        .eq('vendedor_id', actualVendedorId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('transferencias')
-        .select('*')
-        .eq('jornada_id', jornada.id)
-        .eq('vendedor_id', actualVendedorId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('descuentos')
-        .select('*')
-        .eq('jornada_id', jornada.id)
-        .eq('vendedor_id', actualVendedorId)
-        .order('created_at', { ascending: true }),
-    ])
+  const { data: movimientos } = await supabase
+    .from('movimientos')
+    .select('*')
+    .eq('jornada_id', jornada.id)
+    .eq('vendedor_id', actualVendedorId)
+    .order('created_at', { ascending: true })
 
   return (
     <div className="flex flex-col gap-5">
@@ -77,9 +62,7 @@ export default async function MovimientosPage({
       <MovimientosForm
         jornadaId={jornada.id}
         vendedorId={actualVendedorId}
-        gastos={gastos ?? []}
-        transferencias={transferencias ?? []}
-        descuentos={descuentos ?? []}
+        movimientos={movimientos ?? []}
       />
     </div>
   )

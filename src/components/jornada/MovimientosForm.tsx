@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { Gasto, Transferencia, Descuento } from '@/types'
+import type { Movimiento } from '@/types'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ErrorAlert } from '@/components/ui/ErrorAlert'
@@ -20,9 +20,7 @@ type TipoMovimiento = 'gasto' | 'transferencia' | 'descuento'
 interface MovimientosFormProps {
   jornadaId: string
   vendedorId: string
-  gastos: Gasto[]
-  transferencias: Transferencia[]
-  descuentos: Descuento[]
+  movimientos: Movimiento[]
 }
 
 type MovimientoUnificado = {
@@ -34,40 +32,20 @@ type MovimientoUnificado = {
   created_at: string
 }
 
-function buildMovimientos(
-  gastos: Gasto[],
-  transferencias: Transferencia[],
-  descuentos: Descuento[],
-): MovimientoUnificado[] {
-  return [
-    ...gastos.map((g) => ({
-      id: g.id,
-      tipo: 'gasto' as TipoMovimiento,
-      descripcion: g.descripcion,
-      categoria: g.categoria,
-      monto: g.monto,
-      created_at: g.created_at,
-    })),
-    ...transferencias.map((t) => ({
-      id: t.id,
-      tipo: 'transferencia' as TipoMovimiento,
-      descripcion: t.descripcion,
-      categoria: null,
-      monto: t.monto,
-      created_at: t.created_at,
-    })),
-    ...descuentos.map((d) => ({
-      id: d.id,
-      tipo: 'descuento' as TipoMovimiento,
-      descripcion: d.descripcion,
-      categoria: null,
-      monto: d.monto,
-      created_at: d.created_at,
-    })),
-  ].sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-  )
+function buildMovimientos(movimientos: Movimiento[]): MovimientoUnificado[] {
+  return movimientos
+    .map((m) => ({
+      id: m.id,
+      tipo: m.tipo,
+      descripcion: m.descripcion,
+      categoria: m.categoria,
+      monto: m.monto,
+      created_at: m.created_at,
+    }))
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    )
 }
 
 const tipoLabels: Record<TipoMovimiento, string> = {
@@ -82,18 +60,10 @@ const tipoColors: Record<TipoMovimiento, string> = {
   descuento: 'bg-amber-50 text-amber-700 ring-amber-200/60',
 }
 
-const tipoToTable: Record<TipoMovimiento, 'gastos' | 'transferencias' | 'descuentos'> = {
-  gasto: 'gastos',
-  transferencia: 'transferencias',
-  descuento: 'descuentos',
-}
-
 export function MovimientosForm({
   jornadaId,
   vendedorId,
-  gastos: gastosIniciales,
-  transferencias: transferenciasIniciales,
-  descuentos: descuentosIniciales,
+  movimientos: movimientosIniciales,
 }: MovimientosFormProps) {
   const supabase = createClient()
   const { toast } = useToast()
@@ -108,11 +78,7 @@ export function MovimientosForm({
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [movimientos, setMovimientos] = useState<MovimientoUnificado[]>(
-    buildMovimientos(
-      gastosIniciales,
-      transferenciasIniciales,
-      descuentosIniciales,
-    ),
+    buildMovimientos(movimientosIniciales),
   )
 
   // Single pass over movimientos (js-combine-iterations)
@@ -137,29 +103,19 @@ export function MovimientosForm({
 
     setLoading(true)
 
-    // Unified insert — la tabla cambia segun el tipo. Solo los gastos llevan
-    // categoria; la descripcion es siempre opcional.
-    const table = tipoToTable[tipo]
+    // Una sola tabla `movimientos`. Solo los gastos llevan categoria; la
+    // descripcion es siempre opcional.
     const desc = descripcion.trim() || null
-    const payload =
-      tipo === 'gasto'
-        ? {
-            jornada_id: jornadaId,
-            vendedor_id: vendedorId,
-            descripcion: desc,
-            categoria,
-            monto: montoNum,
-          }
-        : {
-            jornada_id: jornadaId,
-            vendedor_id: vendedorId,
-            descripcion: desc,
-            monto: montoNum,
-          }
-
     const { data, error: insertError } = await supabase
-      .from(table)
-      .insert(payload as never) // `as never` needed because Supabase overloads .from() by literal table name
+      .from('movimientos')
+      .insert({
+        jornada_id: jornadaId,
+        vendedor_id: vendedorId,
+        tipo,
+        categoria: tipo === 'gasto' ? categoria : null,
+        descripcion: desc,
+        monto: montoNum,
+      })
       .select('id, created_at')
       .single()
 
@@ -173,12 +129,12 @@ export function MovimientosForm({
       setMovimientos((prev) => [
         ...prev,
         {
-          id: (data as { id: string; created_at: string }).id,
+          id: data.id,
           tipo,
           descripcion: desc,
           categoria: tipo === 'gasto' ? categoria : null,
           monto: montoNum,
-          created_at: (data as { id: string; created_at: string }).created_at,
+          created_at: data.created_at,
         },
       ])
     }
@@ -199,9 +155,8 @@ export function MovimientosForm({
     if (!ok) return
 
     setDeletingId(id)
-    const table = tipoToTable[tipoMov]
 
-    const { error } = await supabase.from(table).delete().eq('id', id)
+    const { error } = await supabase.from('movimientos').delete().eq('id', id)
 
     if (!error) {
       setMovimientos((prev) => prev.filter((m) => m.id !== id))

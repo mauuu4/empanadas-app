@@ -89,14 +89,9 @@ export async function calcularResumenSemana(
 
   const jornadaIds = (jornadas ?? []).map((j) => j.id)
 
-  // Fetch ALL related data for ALL jornadas in parallel (eliminates N+1)
-  const [
-    { data: allAsignaciones },
-    { data: allGastos },
-    { data: allTransferencias },
-    { data: allDescuentos },
-    { data: allPagas },
-  ] =
+  // Fetch ALL related data for ALL jornadas in parallel (eliminates N+1).
+  // gastos/transferencias/descuentos viven en una sola tabla `movimientos`.
+  const [{ data: allAsignaciones }, { data: allMovimientos }, { data: allPagas }] =
     jornadaIds.length > 0
       ? await Promise.all([
           supabase
@@ -106,29 +101,15 @@ export async function calcularResumenSemana(
             )
             .in('jornada_id', jornadaIds),
           supabase
-            .from('gastos')
-            .select('jornada_id, monto')
-            .in('jornada_id', jornadaIds),
-          supabase
-            .from('transferencias')
-            .select('jornada_id, monto')
-            .in('jornada_id', jornadaIds),
-          supabase
-            .from('descuentos')
-            .select('jornada_id, monto')
+            .from('movimientos')
+            .select('jornada_id, tipo, monto')
             .in('jornada_id', jornadaIds),
           supabase
             .from('pagas')
             .select('jornada_id, monto')
             .in('jornada_id', jornadaIds),
         ])
-      : [
-          { data: [] },
-          { data: [] },
-          { data: [] },
-          { data: [] },
-          { data: [] },
-        ]
+      : [{ data: [] }, { data: [] }, { data: [] }]
 
   // Fetch all unique productos in one query
   const productoIds = [
@@ -154,28 +135,18 @@ export async function calcularResumenSemana(
     else asignacionesByJornada.set(a.jornada_id, [a])
   }
 
+  // Un solo recorrido sobre movimientos, separando por tipo (js-combine-iterations)
   const gastosByJornada = new Map<string, number>()
-  for (const g of allGastos ?? []) {
-    gastosByJornada.set(
-      g.jornada_id,
-      (gastosByJornada.get(g.jornada_id) ?? 0) + g.monto,
-    )
-  }
-
   const transfByJornada = new Map<string, number>()
-  for (const t of allTransferencias ?? []) {
-    transfByJornada.set(
-      t.jornada_id,
-      (transfByJornada.get(t.jornada_id) ?? 0) + t.monto,
-    )
-  }
-
   const descByJornada = new Map<string, number>()
-  for (const d of allDescuentos ?? []) {
-    descByJornada.set(
-      d.jornada_id,
-      (descByJornada.get(d.jornada_id) ?? 0) + d.monto,
-    )
+  for (const m of allMovimientos ?? []) {
+    const map =
+      m.tipo === 'gasto'
+        ? gastosByJornada
+        : m.tipo === 'transferencia'
+          ? transfByJornada
+          : descByJornada
+    map.set(m.jornada_id, (map.get(m.jornada_id) ?? 0) + m.monto)
   }
 
   const pagasByJornada = new Map<string, number>()
@@ -324,25 +295,16 @@ export async function calcularResumenDia(
   jornadaId: string,
   todosLosVendedores?: { id: string; nombre: string }[],
 ): Promise<DiaResumen> {
-  // Traer asignaciones + movimientos en paralelo (async-parallel)
-  const [
-    { data: asignaciones },
-    { data: gastos },
-    { data: transferencias },
-    { data: descuentos },
-  ] = await Promise.all([
+  // Traer asignaciones + movimientos en paralelo (async-parallel).
+  // gastos/transferencias/descuentos ahora son una sola tabla `movimientos`.
+  const [{ data: asignaciones }, { data: movimientos }] = await Promise.all([
     supabase
       .from('asignaciones')
       .select('vendedor_id, producto_id, cantidad_inicial, cantidad_sobrante')
       .eq('jornada_id', jornadaId),
-    supabase.from('gastos').select('vendedor_id, monto').eq('jornada_id', jornadaId),
     supabase
-      .from('transferencias')
-      .select('vendedor_id, monto')
-      .eq('jornada_id', jornadaId),
-    supabase
-      .from('descuentos')
-      .select('vendedor_id, monto')
+      .from('movimientos')
+      .select('vendedor_id, tipo, monto')
       .eq('jornada_id', jornadaId),
   ])
 
@@ -386,18 +348,18 @@ export async function calcularResumenDia(
     })(),
   ])
 
-  // Index maps O(1)
+  // Index maps O(1): un solo recorrido sobre movimientos, separando por tipo
   const gastosByVendedor = new Map<string, number>()
-  for (const g of gastos ?? []) {
-    gastosByVendedor.set(g.vendedor_id, (gastosByVendedor.get(g.vendedor_id) ?? 0) + g.monto)
-  }
   const transfByVendedor = new Map<string, number>()
-  for (const t of transferencias ?? []) {
-    transfByVendedor.set(t.vendedor_id, (transfByVendedor.get(t.vendedor_id) ?? 0) + t.monto)
-  }
   const descByVendedor = new Map<string, number>()
-  for (const d of descuentos ?? []) {
-    descByVendedor.set(d.vendedor_id, (descByVendedor.get(d.vendedor_id) ?? 0) + d.monto)
+  for (const m of movimientos ?? []) {
+    const map =
+      m.tipo === 'gasto'
+        ? gastosByVendedor
+        : m.tipo === 'transferencia'
+          ? transfByVendedor
+          : descByVendedor
+    map.set(m.vendedor_id, (map.get(m.vendedor_id) ?? 0) + m.monto)
   }
 
   type Asig = (typeof asigs)[number]

@@ -42,30 +42,15 @@ export default async function CerrarPage({
     )
   }
 
-  const [
-    { data: asignacionesRaw },
-    { data: gastos },
-    { data: transferencias },
-    { data: descuentos },
-  ] = await Promise.all([
+  const [{ data: asignacionesRaw }, { data: movimientos }] = await Promise.all([
     supabase
       .from('asignaciones')
       .select('id, producto_id, cantidad_inicial, cantidad_sobrante')
       .eq('jornada_id', jornada.id)
       .eq('vendedor_id', actualVendedorId),
     supabase
-      .from('gastos')
-      .select('monto')
-      .eq('jornada_id', jornada.id)
-      .eq('vendedor_id', actualVendedorId),
-    supabase
-      .from('transferencias')
-      .select('monto')
-      .eq('jornada_id', jornada.id)
-      .eq('vendedor_id', actualVendedorId),
-    supabase
-      .from('descuentos')
-      .select('monto')
+      .from('movimientos')
+      .select('tipo, monto')
       .eq('jornada_id', jornada.id)
       .eq('vendedor_id', actualVendedorId),
   ])
@@ -101,9 +86,14 @@ export default async function CerrarPage({
     })
     .filter((a) => a !== null)
 
-  const totalGastos = (gastos ?? []).reduce((sum, g) => sum + g.monto, 0)
-  const totalTransferencias = (transferencias ?? []).reduce((sum, t) => sum + t.monto, 0)
-  const totalDescuentos = (descuentos ?? []).reduce((sum, d) => sum + d.monto, 0)
+  let totalGastos = 0
+  let totalTransferencias = 0
+  let totalDescuentos = 0
+  for (const m of movimientos ?? []) {
+    if (m.tipo === 'gasto') totalGastos += m.monto
+    else if (m.tipo === 'transferencia') totalTransferencias += m.monto
+    else totalDescuentos += m.monto
+  }
 
   return (
     <div className="flex flex-col gap-5">

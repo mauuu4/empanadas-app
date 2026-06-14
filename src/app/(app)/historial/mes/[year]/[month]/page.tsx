@@ -59,138 +59,123 @@ export default async function HistorialMesPage({
 
   const { data: jornadas } = await supabase
     .from('jornadas')
-    .select('*, semana_id')
+    .select('id, fecha, monto_alcancia, semana_id')
     .gte('fecha', monthStart)
     .lt('fecha', monthEnd)
     .order('fecha', { ascending: true })
 
+  const jornadaIds = (jornadas ?? []).map((j) => j.id)
+  const semanaIds = [...new Set((jornadas ?? []).map((j) => j.semana_id))]
+  const totalJornadas = jornadas?.length ?? 0
+
+  // Todo el mes en pocas consultas batch (sin N+1)
+  const [
+    { data: asignaciones },
+    { data: movimientos },
+    { data: pagas },
+    { data: inversiones },
+    { data: semanas },
+  ] =
+    jornadaIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from('asignaciones')
+            .select('jornada_id, cantidad_inicial, cantidad_sobrante, producto_id')
+            .in('jornada_id', jornadaIds),
+          supabase
+            .from('movimientos')
+            .select('jornada_id, tipo, monto')
+            .in('jornada_id', jornadaIds),
+          supabase.from('pagas').select('monto').in('jornada_id', jornadaIds),
+          supabase
+            .from('inversiones')
+            .select('*')
+            .in('semana_id', semanaIds)
+            .gte('fecha', monthStart)
+            .lt('fecha', monthEnd)
+            .order('fecha', { ascending: true }),
+          supabase
+            .from('semanas')
+            .select('id, fecha_inicio, fecha_fin')
+            .in('id', semanaIds)
+            .order('fecha_inicio', { ascending: true }),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]
+
+  // Precios de los productos asignados (una consulta)
+  const productoIds = [...new Set((asignaciones ?? []).map((a) => a.producto_id))]
+  const precioMap = new Map<string, number>()
+  if (productoIds.length > 0) {
+    const { data: productos } = await supabase
+      .from('productos')
+      .select('id, precio')
+      .in('id', productoIds)
+    for (const p of productos ?? []) precioMap.set(p.id, p.precio)
+  }
+
+  // Venta por jornada (un recorrido sobre asignaciones)
+  const ventaByJornada = new Map<string, number>()
+  for (const a of asignaciones ?? []) {
+    if (a.cantidad_sobrante === null) continue
+    const precio = precioMap.get(a.producto_id)
+    if (precio === undefined) continue
+    const venta = (a.cantidad_inicial - a.cantidad_sobrante) * precio
+    ventaByJornada.set(a.jornada_id, (ventaByJornada.get(a.jornada_id) ?? 0) + venta)
+  }
+
   let totalVentas = 0
+  let totalAlcancia = 0
+  for (const j of jornadas ?? []) {
+    totalVentas += ventaByJornada.get(j.id) ?? 0
+    totalAlcancia += j.monto_alcancia
+  }
+
   let totalGastos = 0
   let totalTransferencias = 0
   let totalDescuentos = 0
-  let totalAlcancia = 0
-  let totalPagas = 0
-  let totalJornadas = 0
-
-  for (const j of jornadas ?? []) {
-    const { data: asignaciones } = await supabase
-      .from('asignaciones')
-      .select('cantidad_inicial, cantidad_sobrante, producto_id')
-      .eq('jornada_id', j.id)
-
-    const productoIds = [...new Set((asignaciones ?? []).map((a) => a.producto_id))]
-
-    let productosMap = new Map<string, { precio: number }>()
-    if (productoIds.length > 0) {
-      const { data: productos } = await supabase
-        .from('productos')
-        .select('id, precio')
-        .in('id', productoIds)
-      productosMap = new Map((productos ?? []).map((p) => [p.id, p]))
-    }
-
-    let ventaJornada = 0
-    for (const asig of asignaciones ?? []) {
-      const prod = productosMap.get(asig.producto_id)
-      if (!prod || asig.cantidad_sobrante === null) continue
-      const vendido = asig.cantidad_inicial - asig.cantidad_sobrante
-      ventaJornada += vendido * prod.precio
-    }
-
-    const [{ data: gastos }, { data: transferencias }, { data: descuentos }] =
-      await Promise.all([
-        supabase.from('gastos').select('monto').eq('jornada_id', j.id),
-        supabase.from('transferencias').select('monto').eq('jornada_id', j.id),
-        supabase.from('descuentos').select('monto').eq('jornada_id', j.id),
-      ])
-
-    const { data: pagas } = await supabase
-      .from('pagas')
-      .select('monto')
-      .eq('jornada_id', j.id)
-
-    totalVentas += ventaJornada
-    totalGastos += (gastos ?? []).reduce((s, g) => s + g.monto, 0)
-    totalTransferencias += (transferencias ?? []).reduce((s, t) => s + t.monto, 0)
-    totalDescuentos += (descuentos ?? []).reduce((s, d) => s + d.monto, 0)
-    totalAlcancia += j.monto_alcancia
-    totalPagas += (pagas ?? []).reduce((s, p) => s + p.monto, 0)
-    totalJornadas++
+  for (const m of movimientos ?? []) {
+    if (m.tipo === 'gasto') totalGastos += m.monto
+    else if (m.tipo === 'transferencia') totalTransferencias += m.monto
+    else totalDescuentos += m.monto
   }
+
+  const totalPagas = (pagas ?? []).reduce((s, p) => s + p.monto, 0)
 
   const totalEfectivo = totalVentas - totalGastos - totalTransferencias - totalDescuentos
   const totalSaldoDias = totalEfectivo - totalAlcancia - totalPagas
 
-  const semanaIds = [...new Set((jornadas ?? []).map((j) => j.semana_id))]
-
+  // Inversiones del mes (un recorrido)
   let totalInversiones = 0
   let totalGastosPersonales = 0
   let totalGastosGenerales = 0
   type InversionItem = { id: string; fecha: string; descripcion: string; monto: number; tipo: string }
   const inversionesMes: InversionItem[] = []
-
-  if (semanaIds.length > 0) {
-    const { data: inversiones } = await supabase
-      .from('inversiones')
-      .select('*')
-      .in('semana_id', semanaIds)
-      .gte('fecha', monthStart)
-      .lt('fecha', monthEnd)
-      .order('fecha', { ascending: true })
-
-    for (const inv of inversiones ?? []) {
-      inversionesMes.push({ id: inv.id, fecha: inv.fecha, descripcion: inv.descripcion, monto: inv.monto, tipo: inv.tipo })
-      if (inv.tipo === 'inversion') {
-        totalInversiones += inv.monto
-      } else if (inv.tipo === 'gasto_general') {
-        totalGastosGenerales += inv.monto
-      } else {
-        totalGastosPersonales += inv.monto
-      }
-    }
+  for (const inv of inversiones ?? []) {
+    inversionesMes.push({ id: inv.id, fecha: inv.fecha, descripcion: inv.descripcion, monto: inv.monto, tipo: inv.tipo })
+    if (inv.tipo === 'inversion') totalInversiones += inv.monto
+    else if (inv.tipo === 'gasto_general') totalGastosGenerales += inv.monto
+    else totalGastosPersonales += inv.monto
   }
 
   const saldoNetoMes =
     totalSaldoDias - totalInversiones - totalGastosGenerales - totalGastosPersonales
 
+  // Desglose por semana (ventas del mes agrupadas por semana, en memoria)
   type SemanaBreakdown = { id: string; fechaInicio: string; fechaFin: string; ventaTotal: number; jornadasCount: number }
-  const semanasBreakdown: SemanaBreakdown[] = []
-
-  if (semanaIds.length > 0) {
-    const { data: semanas } = await supabase
-      .from('semanas')
-      .select('id, fecha_inicio, fecha_fin')
-      .in('id', semanaIds)
-      .order('fecha_inicio', { ascending: true })
-
-    for (const s of semanas ?? []) {
-      const jornadasSemana = (jornadas ?? []).filter((j) => j.semana_id === s.id)
-      let ventaSemana = 0
-      for (const j of jornadasSemana) {
-        const { data: asignaciones } = await supabase
-          .from('asignaciones')
-          .select('cantidad_inicial, cantidad_sobrante, producto_id')
-          .eq('jornada_id', j.id)
-
-        const productoIds = [...new Set((asignaciones ?? []).map((a) => a.producto_id))]
-        let productosMap = new Map<string, { precio: number }>()
-        if (productoIds.length > 0) {
-          const { data: productos } = await supabase
-            .from('productos')
-            .select('id, precio')
-            .in('id', productoIds)
-          productosMap = new Map((productos ?? []).map((p) => [p.id, p]))
-        }
-
-        for (const asig of asignaciones ?? []) {
-          const prod = productosMap.get(asig.producto_id)
-          if (!prod || asig.cantidad_sobrante === null) continue
-          ventaSemana += (asig.cantidad_inicial - asig.cantidad_sobrante) * prod.precio
-        }
-      }
-      semanasBreakdown.push({ id: s.id, fechaInicio: s.fecha_inicio, fechaFin: s.fecha_fin, ventaTotal: ventaSemana, jornadasCount: jornadasSemana.length })
+  const semanasBreakdown: SemanaBreakdown[] = (semanas ?? []).map((s) => {
+    const jornadasSemana = (jornadas ?? []).filter((j) => j.semana_id === s.id)
+    const ventaTotal = jornadasSemana.reduce(
+      (sum, j) => sum + (ventaByJornada.get(j.id) ?? 0),
+      0,
+    )
+    return {
+      id: s.id,
+      fechaInicio: s.fecha_inicio,
+      fechaFin: s.fecha_fin,
+      ventaTotal,
+      jornadasCount: jornadasSemana.length,
     }
-  }
+  })
 
   const promedioVentaDiaria = totalJornadas > 0 ? totalVentas / totalJornadas : 0
   const mesLabel = `${MESES[month - 1]} ${year}`

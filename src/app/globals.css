@@ -174,11 +174,15 @@ body {
     0 2px 8px -2px rgba(217, 119, 6, 0.10);
 }
 
-/* ─── Glass effect ─── */
+/* ─── Glass effect ───
+   blur reducido (8px) y fondo más opaco: el header/navbar son fijos y se
+   superponen al contenido al hacer scroll; un blur grande obliga al navegador a
+   re-rasterizar esa zona en cada frame y causa jank en móvil. Con menos blur y
+   más opacidad se mantiene el look esmerilado a una fracción del costo. */
 .glass {
-  background: rgba(250, 246, 241, 0.82);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  background: rgba(250, 246, 241, 0.92);
+  backdrop-filter: blur(8px) saturate(1.1);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
 }
 
 /* ─── Active press effect ─── */
@@ -205,12 +209,14 @@ body {
   background: linear-gradient(145deg, #1c1410 0%, #3d3028 50%, #2a1f18 100%);
 }
 
-/* Fondo del shell de la app: base cálida con un brillo ámbar muy sutil arriba */
+/* Fondo del shell de la app: base cálida con un brillo ámbar muy sutil arriba.
+   Sin `background-attachment: fixed` a propósito — en móvil fuerza repintar el
+   fondo en cada frame de scroll y causa jank. El brillo va arriba y se desplaza
+   con el contenido, que se ve bien igual. */
 .bg-app-shell {
   background:
     radial-gradient(125% 55% at 50% -12%, rgba(253, 230, 138, 0.22) 0%, transparent 55%),
     #faf6f1;
-  background-attachment: fixed;
 }
 
 /* ─── Subtle texture overlay ─── */
